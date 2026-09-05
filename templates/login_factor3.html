@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Вход: Фактор 3 — CryptoMail{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-8">
+    <div class="m3-card p-8">
+        <!-- 3FA Material Stepper -->
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-[var(--md-color-outline-variant)] text-xs">
+            <div class="flex items-center space-x-2 font-medium text-[var(--md-color-tertiary)]">
+                <span class="w-6 h-6 rounded-full m3-step-done flex items-center justify-center text-xs"><i class="fa-solid fa-check text-[10px]"></i></span>
+                <span>Пароль</span>
+            </div>
+            <div class="w-8 h-0.5 bg-[var(--md-color-tertiary)]"></div>
+            <div class="flex items-center space-x-2 font-medium text-[var(--md-color-tertiary)]">
+                <span class="w-6 h-6 rounded-full m3-step-done flex items-center justify-center text-xs"><i class="fa-solid fa-check text-[10px]"></i></span>
+                <span>Почта</span>
+            </div>
+            <div class="w-8 h-0.5 bg-[var(--md-color-primary)]"></div>
+            <div class="flex items-center space-x-2 font-bold text-[var(--md-color-primary)]">
+                <span class="w-6 h-6 rounded-full m3-step-active flex items-center justify-center text-xs">3</span>
+                <span>Код доступа</span>
+            </div>
+        </div>
+
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 rounded-2xl m3-badge-primary mx-auto flex items-center justify-center mb-3">
+                <i class="fa-solid fa-key text-xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">Третий фактор (3FA)</h1>
+            <p class="text-xs opacity-75 mt-1">
+                Шаг 3 из 3: Введите одноразовый код доступа из приложения-аутентификатора (TOTP) или аварийный резервной код.
+            </p>
+        </div>
+
+        {% if error %}
+            <div class="mb-5 p-3.5 rounded-xl m3-badge-error text-xs flex items-start space-x-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                <span>{{ error }}</span>
+            </div>
+        {% endif %}
+
+        <form method="POST" action="/login/factor3" class="space-y-4">
+            <input type="hidden" name="session_id" value="{{ session_id }}">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-center opacity-80">
+                    TOTP код (6 цифр) или Резервный код (XXXX-XXXX)
+                </label>
+                <input type="text" name="code_input" required autofocus
+                       placeholder="123456 или ABCD-EFGH"
+                       class="m3-input text-center text-lg mono tracking-wider font-bold">
+            </div>
+
+            <!-- Quick Auto-Fill Helper for Tester Convenience -->
+            {% if demo_totp or demo_recovery_code %}
+            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] text-xs space-y-2">
+                <div class="opacity-80 font-semibold flex items-center space-x-1.5 text-[var(--md-color-primary)]">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>Подсказка для тестирования:</span>
+                </div>
+                {% if demo_totp %}
+                <div class="flex items-center justify-between">
+                    <span class="opacity-75">Текущий TOTP (RFC 6238):</span>
+                    <button type="button" onclick="document.querySelector('input[name=code_input]').value='{{ demo_totp }}'"
+                            class="mono font-bold text-xs py-1 px-2.5 m3-btn-tonal rounded-lg">
+                        {{ demo_totp }}
+                    </button>
+                </div>
+                {% endif %}
+                {% if demo_recovery_code %}
+                <div class="flex items-center justify-between">
+                    <span class="opacity-75">Резервный код:</span>
+                    <button type="button" onclick="document.querySelector('input[name=code_input]').value='{{ demo_recovery_code }}'"
+                            class="mono font-bold text-xs py-1 px-2.5 m3-btn-tonal rounded-lg">
+                        {{ demo_recovery_code }}
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <button type="submit" class="w-full mt-4 py-3 m3-btn-filled text-sm">
+                <i class="fa-solid fa-lock-open text-xs"></i>
+                <span>Завершить 3FA и войти в систему</span>
+            </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-[var(--md-color-outline-variant)] text-center text-xs opacity-75">
+            <a href="/login" class="hover:underline">&larr; Вернуться к началу входа</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

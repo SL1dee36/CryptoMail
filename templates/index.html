@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}CryptoMail — Личный кабинет{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Top Action Bar -->
+    <div class="m3-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl font-bold tracking-tight">Защищенная почта</h1>
+                <span class="m3-badge
+                    {% if user.role == 'admin' %}m3-badge-error
+                    {% elif user.role == 'user' %}m3-badge-success
+                    {% else %}m3-badge-warning{% endif %}">
+                    Ранг: {{ user.role_title_ru }}
+                </span>
+            </div>
+            <p class="text-xs opacity-75 mt-1">
+                Все сообщения в базе данных зашифрованы алгоритмом ГОСТ «Кузнечик». Подпись каждого сообщения заверяется персональной ЭЦП.
+            </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+            {% if user.role != 'guest' %}
+                <a href="/messages/compose" class="m3-btn-filled text-sm">
+                    <i class="fa-solid fa-pen-nib"></i>
+                    <span>Написать сообщение</span>
+                </a>
+            {% else %}
+                <span class="m3-badge m3-badge-warning py-2 px-3 text-xs">
+                    <i class="fa-solid fa-eye mr-1"></i> Режим «Гость»: только просмотр
+                </span>
+            {% endif %}
+
+            <!-- User Export Buttons -->
+            <div class="flex items-center space-x-1.5 p-1 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
+                <span class="text-[11px] opacity-70 px-2 font-medium">Экспорт данных:</span>
+                <a href="/export/my/json" class="m3-btn-tonal text-xs py-1.5 px-2.5" title="Выгрузить в JSON">
+                    <i class="fa-solid fa-file-code"></i>
+                    <span>JSON</span>
+                </a>
+                <a href="/export/my/pdf" class="m3-btn-tonal text-xs py-1.5 px-2.5" title="Выгрузить в PDF">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>PDF</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Lists: Inbox and Outbox Tabs -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Inbox -->
+        <div class="m3-card p-5 flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)] mb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl m3-badge-primary flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-inbox"></i>
+                    </div>
+                    <h2 class="text-base font-bold">Входящие сообщения</h2>
+                </div>
+                <span class="m3-badge m3-badge-neutral text-xs">
+                    {{ received_messages|length }}
+                </span>
+            </div>
+
+            {% if received_messages %}
+                <div class="space-y-3 flex-grow">
+                    {% for m in received_messages %}
+                        <a href="/messages/{{ m.id }}"
+                           class="block p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] hover:bg-[var(--md-color-surface-container-high)] transition group no-underline">
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="font-bold text-[var(--md-color-primary)]">
+                                    От: {{ m.sender.username }}
+                                </span>
+                                <span class="opacity-60 text-[11px]">{{ m.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                            </div>
+                            <div class="text-sm font-semibold mb-2 line-clamp-1">
+                                {{ m.subject }}
+                            </div>
+                            <div class="flex items-center space-x-2 text-[11px]">
+                                <span class="m3-badge {% if 'RSA' in m.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-[10px]">
+                                    {{ m.encryption_type }}
+                                </span>
+                                {% if m.ecp_signature %}
+                                    <span class="m3-badge m3-badge-success text-[10px]">
+                                        <i class="fa-solid fa-signature text-[9px]"></i>
+                                        <span>ЭЦП</span>
+                                    </span>
+                                {% endif %}
+                                {% if cached_message_ids and m.id in cached_message_ids %}
+                                    <span class="m3-badge m3-badge-success text-[10px] ml-auto">
+                                        <i class="fa-solid fa-memory text-[9px]"></i>
+                                        <span>В памяти</span>
+                                    </span>
+                                {% else %}
+                                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); CryptoTaskTracker.startDecryption('{{ m.id }}', function() { const el = document.getElementById('msg-cache-status-{{ m.id }}'); if (el) el.outerHTML = '<span class=\'m3-badge m3-badge-success text-[10px] ml-auto\'><i class=\'fa-solid fa-memory text-[9px]\'></i><span>В памяти</span></span>'; });" id="msg-cache-status-{{ m.id }}" class="m3-btn-tonal text-[10px] py-0.5 px-2.5 rounded-full ml-auto hover:opacity-90 transition" title="Запустить дешифрование сообщения">
+                                        <i class="fa-solid fa-unlock-keyhole text-[9px]"></i>
+                                        <span>Расшифровать</span>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="py-12 text-center opacity-60 text-xs flex-grow flex flex-col items-center justify-center">
+                    <i class="fa-solid fa-envelope-open text-2xl mb-2 opacity-50"></i>
+                    <span>Входящих сообщений пока нет</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Outbox -->
+        <div class="m3-card p-5 flex flex-col">
+            <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)] mb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl m3-badge-secondary flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </div>
+                    <h2 class="text-base font-bold">Отправленные сообщения</h2>
+                </div>
+                <span class="m3-badge m3-badge-neutral text-xs">
+                    {{ sent_messages|length }}
+                </span>
+            </div>
+
+            {% if sent_messages %}
+                <div class="space-y-3 flex-grow">
+                    {% for m in sent_messages %}
+                        <a href="/messages/{{ m.id }}"
+                           class="block p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] hover:bg-[var(--md-color-surface-container-high)] transition group no-underline">
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="font-bold text-[var(--md-color-primary)]">
+                                    Кому: {{ m.recipient.username }}
+                                </span>
+                                <span class="opacity-60 text-[11px]">{{ m.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                            </div>
+                            <div class="text-sm font-semibold mb-2 line-clamp-1">
+                                {{ m.subject }}
+                            </div>
+                            <div class="flex items-center space-x-2 text-[11px]">
+                                <span class="m3-badge {% if 'RSA' in m.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-[10px]">
+                                    {{ m.encryption_type }}
+                                </span>
+                                {% if m.ecp_signature %}
+                                    <span class="m3-badge m3-badge-success text-[10px]">
+                                        <i class="fa-solid fa-signature text-[9px]"></i>
+                                        <span>Подписано ЭЦП</span>
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="py-12 text-center opacity-60 text-xs flex-grow flex flex-col items-center justify-center">
+                    <i class="fa-solid fa-paper-plane text-2xl mb-2 opacity-50"></i>
+                    <span>Вы еще не отправляли сообщений</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

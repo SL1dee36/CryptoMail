@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация — CryptoMail{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-8">
+    <div class="m3-card p-8">
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 rounded-2xl m3-badge-primary mx-auto flex items-center justify-center mb-3">
+                <i class="fa-solid fa-user-plus text-xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">Создание аккаунта</h1>
+            <p class="text-xs opacity-75 mt-1">Регистрация с валидацией регулярными выражениями и защитой 3FA</p>
+        </div>
+
+        {% if error %}
+            <div class="mb-5 p-3.5 rounded-xl m3-badge-error text-xs flex items-start space-x-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                <span>{{ error }}</span>
+            </div>
+        {% endif %}
+
+        <form method="POST" action="/register" class="space-y-4" id="regForm">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Логин (Имя пользователя)</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
+                        <i class="fa-solid fa-user"></i>
+                    </span>
+                    <input type="text" name="username" id="username" required
+                           value="{{ form_username or '' }}"
+                           pattern="^[a-zA-Z0-9_-]{3,20}$"
+                           placeholder="ivan_petrov"
+                           class="m3-input pl-10">
+                </div>
+                <p class="text-[11px] opacity-60 mt-1">От 3 до 20 символов: буквы, цифры, дефис, подчеркивание</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Email (для 2-го фактора 3FA)</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
+                        <i class="fa-solid fa-envelope"></i>
+                    </span>
+                    <input type="email" name="email" id="email" required
+                           value="{{ form_email or '' }}"
+                           placeholder="user@example.com"
+                           class="m3-input pl-10">
+                </div>
+                <p class="text-[11px] opacity-60 mt-1">На этот адрес локальный SMTP-сервер будет доставлять коды 3FA</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Стойкий Пароль (ГОСТ Стрибог-512 + Соль)</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
+                        <i class="fa-solid fa-lock"></i>
+                    </span>
+                    <input type="password" name="password" id="password" required
+                           placeholder="••••••••••••"
+                           class="m3-input pl-10">
+                </div>
+                <ul class="text-[11px] opacity-75 mt-2 space-y-1 pl-1">
+                    <li id="rule-len" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Минимум 8 символов</span></li>
+                    <li id="rule-case" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Заглавные и строчные буквы</span></li>
+                    <li id="rule-num" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Минимум одна цифра</span></li>
+                    <li id="rule-spec" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Спецсимвол (@, $, !, %, *, ?, &, _, -, #, ^)</span></li>
+                </ul>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Размер RSA ключа для шифрования</label>
+                <select name="rsa_key_size" class="m3-select text-xs">
+                    <option value="4096" selected>RSA-4096 (Рекомендуемый, высокая стойкость)</option>
+                    <option value="2048">RSA-2048 (Быстрый базовый)</option>
+                    <option value="8192">RSA-8192 (Сверхвысокая стойкость)</option>
+                    <option value="32768">RSA-32K (32768 бит — Экстремальный)</option>
+                </select>
+                <p class="text-[11px] opacity-60 mt-1">Открытый ключ будет использоваться другими пользователями для шифрования сообщений вам</p>
+            </div>
+
+            <button type="submit" class="w-full mt-4 py-3 m3-btn-filled text-sm">
+                Зарегистрироваться и получить ключи
+            </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-[var(--md-color-outline-variant)] text-center text-xs opacity-75">
+            Уже есть аккаунт?
+            <a href="/login" class="text-[var(--md-color-primary)] font-medium ml-1 hover:underline">Войти</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const pwd = document.getElementById('password');
+    const rLen = document.getElementById('rule-len');
+    const rCase = document.getElementById('rule-case');
+    const rNum = document.getElementById('rule-num');
+    const rSpec = document.getElementById('rule-spec');
+
+    pwd.addEventListener('input', () => {
+        const val = pwd.value;
+        setRule(rLen, val.length >= 8);
+        setRule(rCase, /[a-z]/.test(val) && /[A-Z]/.test(val));
+        setRule(rNum, /\d/.test(val));
+        setRule(rSpec, /[@$!%*?&_\-#^]/.test(val));
+    });
+
+    function setRule(el, valid) {
+        if (valid) {
+            el.className = 'flex items-center space-x-1.5 text-[var(--md-color-tertiary)] font-semibold';
+            el.querySelector('i').className = 'fa-solid fa-check text-[10px]';
+        } else {
+            el.className = 'flex items-center space-x-1.5 opacity-60';
+            el.querySelector('i').className = 'fa-solid fa-circle-dot text-[8px]';
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# SQLite and application databases
+*.db
+*.sqlite3
+cryptomail.db
+
+# Cryptographic artifacts & keys
+*.pem
+*.key
+data/rsa_pool/precomputed_32k.json
+data/rsa_pregen/
+data/test_pregen/
+data/test_pregen_unit/
+
+# Export outputs
+admin_all_messages.*
+admin_user_*_messages.*
+messages_*.*
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Operating system artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+temp/

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Моя ЭЦП и Сертификат — CryptoMail{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto my-6 space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight flex items-center space-x-2.5">
+                <i class="fa-solid fa-signature text-[var(--md-color-tertiary)]"></i>
+                <span>Электронная Цифровая Подпись (ЭЦП)</span>
+            </h1>
+            <p class="text-xs opacity-75 mt-1">
+                Персональный самоподписанный сертификат пользователя <span class="font-semibold text-[var(--md-color-primary)]">{{ user.username }}</span>.
+            </p>
+        </div>
+        <form method="POST" action="/ecp/reissue">
+            <button type="submit" onclick="return confirm('Перевыпустить сертификат ЭЦП? Все последующие сообщения будут подписываться новым ключом.')"
+                    class="m3-btn-outlined text-xs py-1.5 px-3">
+                <i class="fa-solid fa-rotate"></i>
+                <span>Перевыпустить ЭЦП</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Certificate Card -->
+    <div class="m3-card p-6 space-y-5">
+        <div class="flex items-center justify-between pb-4 border-b border-[var(--md-color-outline-variant)]">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-2xl m3-badge-success flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-stamp"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold">Цифровой Сертификат ЭЦП</h3>
+                    <p class="text-xs opacity-75">Алгоритм подписи: ГОСТ Р 34.11-2012 «Стрибог-512» + ECDSA</p>
+                </div>
+            </div>
+            <span class="m3-badge m3-badge-success text-xs font-semibold">
+                Действителен
+            </span>
+        </div>
+
+        {% if cert_dict %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+                <span class="opacity-60 block">Субъект (Владелец):</span>
+                <span class="font-bold text-sm text-[var(--md-color-primary)]">{{ cert_dict.subject.common_name }}</span>
+                <p class="text-[11px] opacity-75">User ID: #{{ cert_dict.subject.user_id }} &bull; {{ cert_dict.subject.organization }}</p>
+            </div>
+
+            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+                <span class="opacity-60 block">Кем выдан (Издатель):</span>
+                <span class="font-bold text-sm text-[var(--md-color-tertiary)]">{{ cert_dict.issuer.common_name }}</span>
+                <p class="text-[11px] opacity-75">Тип: Персональный самовыпущенный сертификат</p>
+            </div>
+
+            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+                <span class="opacity-60 block">Серийный номер:</span>
+                <span class="mono font-bold break-all text-[var(--md-color-secondary)]">{{ cert_dict.serial_number }}</span>
+            </div>
+
+            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+                <span class="opacity-60 block">Срок действия:</span>
+                <span>С {{ cert_dict.valid_from[:10] }} по {{ cert_dict.valid_to[:10] }}</span>
+            </div>
+        </div>
+
+        <!-- Signature of Certificate -->
+        <div>
+            <span class="text-xs font-semibold block mb-1 opacity-80">Цифровая подпись сертификата (Streebog-512):</span>
+            <div class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] text-[var(--md-color-tertiary)] break-all select-all">
+                {{ cert_dict.signature }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Public Key PEM & Download -->
+        <div>
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-semibold opacity-80">Открытый ключ ЭЦП (Public Key PEM):</span>
+                <div class="flex items-center space-x-2">
+                    <a href="/ecp/download/public" class="m3-btn-outlined text-[11px] py-1 px-2.5">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Скачать Public Key PEM</span>
+                    </a>
+                    {% if cert_dict %}
+                    <a href="/ecp/download/cert" class="m3-btn-outlined text-[11px] py-1 px-2.5">
+                        <i class="fa-solid fa-file-shield"></i>
+                        <span>Скачать Сертификат (JSON)</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <pre class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] overflow-x-auto select-all max-h-36">{{ user.ecp_public_key }}</pre>
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] text-xs space-y-1">
+            <div class="font-bold flex items-center space-x-1.5 text-[var(--md-color-primary)]">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Защита закрытого ключа ЭЦП:</span>
+            </div>
+            <p class="opacity-75">
+                Ваш закрытый ключ ЭЦП зашифрован в базе данных алгоритмом ГОСТ «Кузнечик» (ГОСТ Р 34.12-2015). Закрытый ключ никогда не передается другим пользователям и используется исключительно для подписания сообщений.
+            </p>
+        </div>
+    </div>
+
+    <!-- RSA Encryption Key Management Card -->
+    <div class="m3-card p-6 space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[var(--md-color-outline-variant)] gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-2xl m3-badge-primary flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h3 class="text-base font-bold">Ключевая пара шифрования RSA</h3>
+                        <span class="m3-badge {% if rsa_key_size >= 32768 %}m3-badge-secondary{% elif rsa_key_size >= 4096 %}m3-badge-primary{% else %}m3-badge-neutral{% endif %} mono text-xs">
+                            {% if rsa_key_size >= 32768 %}RSA-32K (32768 бит){% else %}RSA-{{ rsa_key_size }} бит{% endif %}
+                        </span>
+                    </div>
+                    <p class="text-xs opacity-75">Асимметричные ключи в стандартном формате OpenSSL (PKCS#8 PEM)</p>
+                </div>
+            </div>
+
+            <!-- Reissue RSA with Key Size Selector Form -->
+            <form method="POST" action="/ecp/rsa/reissue" class="flex items-center space-x-2">
+                <select name="key_size" class="m3-select py-1 px-2.5 text-xs w-auto">
+                    <option value="4096" {% if rsa_key_size == 4096 %}selected{% endif %}>RSA-4096 (Рекомендуемый)</option>
+                    <option value="2048" {% if rsa_key_size == 2048 %}selected{% endif %}>RSA-2048 (Быстрый)</option>
+                    <option value="8192" {% if rsa_key_size == 8192 %}selected{% endif %}>RSA-8192 (Высокая стойкость)</option>
+                    <option value="32768" {% if rsa_key_size >= 32768 %}selected{% endif %}>RSA-32K (32768 бит)</option>
+                </select>
+                <button type="submit" onclick="return confirm('Сгенерировать новую ключевую пару RSA выбранной разрядности?')"
+                        class="m3-btn-filled text-xs py-1.5 px-3">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span>Обновить RSA</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- RSA Public Key PEM & OpenSSL Download Buttons -->
+        <div>
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-semibold opacity-80">Открытый ключ RSA (SubjectPublicKeyInfo PEM):</span>
+                <div class="flex items-center space-x-2">
+                    <a href="/ecp/rsa/download/public" class="m3-btn-tonal text-[11px] py-1 px-2.5" title="Скачать публичный ключ OpenSSL">
+                        <i class="fa-solid fa-download"></i>
+                        <span>public_key.pem</span>
+                    </a>
+                    <a href="/ecp/rsa/download/private" class="m3-btn-outlined text-[11px] py-1 px-2.5" title="Скачать приватный ключ OpenSSL">
+                        <i class="fa-solid fa-key"></i>
+                        <span>private_key.pem</span>
+                    </a>
+                </div>
+            </div>
+            <pre class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] overflow-x-auto select-all max-h-40">{{ user.rsa_public_key }}</pre>
+        </div>
+
+        <div class="p-4 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] text-xs space-y-1">
+            <div class="font-bold flex items-center space-x-1.5 text-[var(--md-color-primary)]">
+                <i class="fa-solid fa-lock"></i>
+                <span>Шифрование данных и ключей в базе данных:</span>
+            </div>
+            <p class="opacity-75">
+                Приватный ключ RSA зашифрован в базе данных алгоритмом ГОСТ «Кузнечик» (ГОСТ Р 34.12-2015). Сообщения, адресованные вам, запечатываются вашим публичным RSA-ключом и могут быть расшифрованы только вашим закрытым ключом.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
