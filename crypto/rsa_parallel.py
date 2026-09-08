@@ -20,8 +20,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
+from crypto.rsa import RSAPrivateKey, RSAPublicKey, build_rsa_keypair_from_primes
 
 
 # Precomputed small primes sieve up to 2000 for ultra-fast candidate filtering
@@ -180,7 +179,7 @@ def generate_rsa_keypair_parallel(
     key_size: int = 4096,
     num_workers: Optional[int] = None,
     verbose: bool = True,
-) -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey, Dict]:
+) -> Tuple[RSAPrivateKey, RSAPublicKey, Dict]:
     """
     Generates an RSA key pair using all CPU cores in parallel.
     Displays live real-time candidate count and elapsed timer in the terminal.
@@ -231,7 +230,8 @@ def generate_rsa_keypair_parallel(
             sys.stdout.flush()
 
     q = p
-    while q == p or (p * q).bit_length() != key_size:
+    min_diff = 1 << max(1, prime_bits - 100)
+    while q == p or abs(p - q) < min_diff or (p * q).bit_length() != key_size:
         q, cands_q, el_q = find_prime_parallel(prime_bits, num_workers=num_workers, progress_callback=progress_q)
         total_candidates_all += cands_q
 
@@ -249,18 +249,7 @@ def generate_rsa_keypair_parallel(
         sys.stdout.flush()
 
     # Math assembly
-    e = 65537
-    n = p * q
-    phi = (p - 1) * (q - 1)
-    d = pow(e, -1, phi)
-    dmp1 = d % (p - 1)
-    dmq1 = d % (q - 1)
-    iqmp = pow(q, -1, p)
-
-    pub_nums = rsa.RSAPublicNumbers(e, n)
-    priv_nums = rsa.RSAPrivateNumbers(p, q, d, dmp1, dmq1, iqmp, pub_nums)
-    priv_key = priv_nums.private_key(backend=default_backend())
-    pub_key = priv_key.public_key()
+    priv_key, pub_key = build_rsa_keypair_from_primes(p, q, public_exponent=65537)
 
     total_time = time.time() - t_global_start
     speed_overall = total_candidates_all / total_time if total_time > 0 else 0

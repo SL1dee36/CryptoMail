@@ -37,7 +37,7 @@
 |  | crypto_task_service.py | | |                |     ЯДРО КРИПТОГРАФИИ       |
 |  | (Фоновые потоки, кэш)  | | |                |     (пакет crypto)          |
 |  +------------------------+ | |                |   +-----------------------+ |
-|  +------------------------+ | |                |   | rsa32k.py             | |
+|  +------------------------+ | |                |   | rsa.py                | |
 |  | export_service.py      | | |                |   | (OAEP, Hybrid, PEM)   | |
 |  | (Генерация PDF, JSON)  | | |                |   +-----------------------+ |
 |  +------------------------+ | |                |   +-----------------------+ |
@@ -89,7 +89,7 @@
    * Вычисляет хеш пароля с помощью `streebog.py:pbkdf2_streebog512(password, salt, iterations=1000)`.
    * Генерирует ключевую пару ЭЦП через `ecp.py:generate_ecp_keypair()`.
    * Выпускает самоподписанный сертификат пользователя через `ecp.py:issue_self_signed_certificate()`.
-   * Генерирует или извлекает из пула пару ключей RSA нужной разрядности (`rsa32k.py:get_or_create_rsa_keypair(key_size)`).
+   * Генерирует или извлекает из пула пару ключей RSA нужной разрядности (`rsa.py:get_or_create_rsa_keypair(key_size)`).
    * Формирует 5 случайных 8-значных резервных кодов восстановления (Recovery Codes).
    * Создает объект `User`. При присвоении закрытых ключей и кодов восстановления сеттеры модели прозрачно шифруют их через `db_cipher.py:encrypt_db_field()` (ГОСТ «Кузнечик» в режиме CBC).
    * Сохраняет пользователя в БД через `db.commit()`.
@@ -101,7 +101,7 @@
    * Генерируется дайджест исходного текста через `streebog.py:streebog512`.
    * Накладывается подпись кривой SECP384R1 через `ecp.py:sign_message`.
 4. В зависимости от выбранного протокола шифрования:
-   * **RSA (включая RSA-32K)**: Загружается открытый ключ получателя `recipient.rsa_public_key`, вызывается `rsa32k.py:rsa_encrypt_hybrid(pub, body_bytes)`. Формируется случайный ключ «Кузнечика», данные шифруются в CTR, а сессионный ключ оборачивается RSA-OAEP.
+   * **RSA (включая RSA-32K)**: Загружается открытый ключ получателя `recipient.rsa_public_key`, вызывается `rsa.py:rsa_encrypt_hybrid(pub, body_bytes)`. Формируется случайный ключ «Кузнечика», данные шифруются в CTR, а сессионный ключ оборачивается RSA-OAEP.
    * **STREEBOG-512**: Вызывается `message_service.py:encrypt_message_streebog`. Генерируется соль и IV, вычисляется ключ через PBKDF2-Стрибог, данные шифруются в CTR, рассчитывается имитовставка HMAC-Стрибог-512.
    * **KUZNYECHIK-256**: Вызывается `message_service.py:encrypt_message_kuznyechik`. Формируется 256-битный симметричный ключ и IV, данные шифруются в CBC с набивкой PKCS#7.
 5. Создается запись `Message`. Тема, шифротекст и ключевой бандл шифруются на уровне БД шифром «Кузнечик».
@@ -206,42 +206,53 @@
 
 ---
 
-## 2.3. Модули `crypto/rsa32k.py` и `crypto/rsa_parallel.py`
+## 2.3. Модули `crypto/rsa.py` и `crypto/rsa_parallel.py`
 
-Обеспечивают генерацию, экспорт, импорт, дополнение и гибридное шифрование для ключей RSA стандартных (2048, 4096) и экстремальных (32768) размеров.
+Обеспечивают чистую реализацию на Python (без внешних зависимостей и без библиотеки `cryptography`) генерации, экспорта (PEM PKCS#1/PKCS#8/SPKI), импорта, OAEP-дополнения и гибридного шифрования для ключей RSA стандартных (2048, 4096) и экстремальных (32768) размеров.
 
-### Функции `crypto/rsa32k.py`
+### Функции и классы `crypto/rsa.py`
 
-#### `build_rsa_keypair_from_primes(p: int, q: int, public_exponent: int = 65537) -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]`
+#### Классы `RSAPrivateKey` и `RSAPublicKey`
+* Чистая Python-реализация структур открытого и закрытого ключей RSA.
+* Поддерживают свойства `key_size`, методы `public_key()`, `encrypt(plaintext, padding=None)` и `decrypt(ciphertext, padding=None)`.
+* Закрытый ключ поддерживает ускорение CRT (китайская теорема об остатках) для мгновенного дешифрования.
+
+#### `build_rsa_keypair_from_primes(p: int, q: int, public_exponent: int = 65537) -> Tuple[RSAPrivateKey, RSAPublicKey]`
 * **Входные параметры**:
   * `p`, `q`: простые числа (типа Python `int` произвольной разрядности).
   * `public_exponent`: открытая экспонента $e$ (по умолчанию 65537).
-* **Возвращаемое значение**: кортеж `(private_key, public_key)` интерфейса библиотеки `cryptography`.
+* **Возвращаемое значение**: кортеж `(private_key, public_key)` чистых Python-объектов RSA.
 * **Внутренняя логика**:
   1. Проверяет условие $p > q$. Если $p < q$, значения меняются местами для соответствия стандарту PKCS#1.
   2. Вычисляет модуль $n = p \cdot q$.
   3. Вычисляет функцию Эйлера $\varphi(n) = (p - 1)(q - 1)$.
   4. Находит секретную экспоненту $d = \text{pow}(e, -1, \varphi(n))$.
   5. Рассчитывает CRT-параметры: $dmp1 = d \bmod (p - 1)$, $dmq1 = d \bmod (q - 1)$, $iqmp = \text{pow}(q, -1, p)$.
-  6. Конструирует структуры `RSAPublicNumbers` и `RSAPrivateNumbers` и инициализирует объект ключа через OpenSSL backend.
+  6. Инициализирует и возвращает объекты `RSAPrivateKey` и `RSAPublicKey`.
 
-#### `generate_rsa_keypair(key_size: int = 32768, public_exponent: int = 65537) -> Tuple[...]`
-* **Логика**: Прямой вызов системного генератора `rsa.generate_private_key`. Для ключей до 4096 бит выполняется мгновенно; для 32768 бит рекомендуется использовать многопоточный генератор.
+#### `generate_rsa_keypair(key_size: int = 32768, public_exponent: int = 65537) -> Tuple[RSAPrivateKey, RSAPublicKey]`
+* **Логика**: Для ключей до 2048 бит генерирует простые числа мгновенно с использованием встроенного Miller-Rabin теста; для больших ключей использует многопоточный поиск `find_prime_parallel`.
 
-#### `get_or_create_rsa_keypair(key_size: int = 4096) -> Tuple[...]`
-* **Логика**: Для размера 32768 бит проверяет наличие предвычисленного файла в пуле `data/rsa_pool/precomputed_32k.json`. Если файл найден, ключ загружается за 0.05 с. В противном случае генерируется на лету.
+#### `get_or_create_rsa_keypair(key_size: int = 4096) -> Tuple[RSAPrivateKey, RSAPublicKey]`
+* **Логика**: Для размера 32768 бит проверяет наличие предвычисленного файла в пуле `data/rsa_pool/precomputed_32k.json` или в `data/rsa_pregen`. Если файл найден, ключ загружается за 0.01 с. В противном случае генерируется на лету.
 
-#### `rsa_encrypt_hybrid(public_key: rsa.RSAPublicKey, plaintext: Union[str, bytes]) -> str`
+#### `export_private_key_pem(private_key: RSAPrivateKey, password: str = None) -> str` / `export_public_key_pem(public_key: RSAPublicKey) -> str`
+* Экспорт ключей в стандартный ASN.1 DER / PEM формат (PKCS#8 для закрытого ключа, SubjectPublicKeyInfo для открытого ключа).
+
+#### `load_private_key_pem(pem_data) -> RSAPrivateKey` / `load_public_key_pem(pem_data) -> RSAPublicKey`
+* Парсинг и загрузка ключей из форматов PEM (PKCS#1, PKCS#8, SPKI) или JSON.
+
+#### `rsa_encrypt_hybrid(public_key: RSAPublicKey, plaintext: Union[str, bytes]) -> str`
 * **Логика**:
   1. Генерирует 32-байтный случайный сессионный ключ $K_{\text{sess}}$ и 16-байтный $IV$.
   2. Шифрует открытый текст $M$ с помощью `Kuznyechik(K_sess).encrypt_ctr(plaintext, iv=iv)`.
-  3. Шифрует сессионный ключ $K_{\text{sess}}$ с помощью `public_key.encrypt(K_sess, padding.OAEP(MGF1(SHA256), SHA256))`.
+  3. Шифрует сессионный ключ $K_{\text{sess}}$ с помощью `public_key.encrypt(K_sess)` (схема RSA-OAEP SHA-256 / MGF1).
   4. Сериализует компоненты в JSON-бандл и кодирует в Base64.
 
-#### `rsa_decrypt_hybrid(private_key: rsa.RSAPrivateKey, encrypted_bundle_str: str) -> bytes`
+#### `rsa_decrypt_hybrid(private_key: RSAPrivateKey, encrypted_bundle_str: str) -> bytes`
 * **Логика**:
   1. Десериализует JSON-бандл.
-  2. Расшифровывает `enc_key` закрытым ключом RSA с набивкой OAEP-SHA256, восстанавливая $K_{\text{sess}}$.
+  2. Расшифровывает `enc_key` закрытым ключом RSA с набивкой OAEP-SHA256 и CRT-ускорением, восстанавливая $K_{\text{sess}}$.
   3. Дешифрует тело шифротекста симметричным шифром «Кузнечик» в режиме CTR.
 
 ### Функции `crypto/rsa_parallel.py`
@@ -257,35 +268,69 @@
 * **Логика**:
   1. Запускает `find_prime_parallel` для генерации $p$ длины `key_size // 2`.
   2. Запускает `find_prime_parallel` для генерации $q$, гарантируя $q \neq p$ и $(p \cdot q).\text{bit\_length}() == \text{key\_size}$.
-  3. Собирает RSA-ключ через `RSAPrivateNumbers`.
+  3. Собирает RSA-ключ через `build_rsa_keypair_from_primes`.
 
 ---
 
 ## 2.4. Модуль `crypto/ecp.py`
 
-Реализует электронную цифровую подпись (ЭЦП) и цифровые сертификаты.
+Реализует национальный стандарт электронной цифровой подписи (ЭЦП) **ГОСТ Р 34.10-2012** (RFC 7091 / RFC 7836) и структуру цифровых сертификатов на чистом Python **без использования библиотеки `cryptography`**.
+
+### Поддерживаемые параметры и кривые
+* **ГОСТ Р 34.10-2012 (512 бит)**: Кривая `id-tc26-gost-3410-12-512-paramSetA` (RFC 7836) в канонической форме Вейерштрасса над полем $\mathbb{F}_p$ ($p \approx 2^{512}$), спаренная с хэш-функцией ГОСТ Р 34.11-2012 «Стрибог-512». Длина подписи $\zeta = R \parallel S$ составляет 128 байт (1024 бита).
+* **ГОСТ Р 34.10-2012 (256 бит)**: Кривая `id-tc26-gost-3410-2012-256-paramSetA` (RFC 7091 / RFC 4357 CryptoPro-A) над полем $\mathbb{F}_p$ ($p \approx 2^{256}$), спаренная со «Стрибог-256». Длина подписи $\zeta = R \parallel S$ составляет 64 байта (512 бит).
+
+### Классы модуля
+* `GostCurve`: Модель эллиптической кривой $y^2 \equiv x^3 + ax + b \pmod p$. Включает методы проверки принадлежности точки кривой `is_on_curve`, группового сложения точек `point_add` и скалярного умножения `point_mul` (удвоение-и-сложение с обработкой бесконечно удаленной точки $\mathcal{O}$).
+* `GostPrivateKey`: Закрытый ключ подписи (целое число $d \in [1, q-1]$). Предоставляет методы `sign(message)` и доступ к открытому ключу через `public_key()`.
+* `GostPublicKey`: Открытый ключ проверки подписи (точка $Q = d \cdot P$). Предоставляет метод `verify(signature_bytes, message)`.
 
 ### Функции модуля
 
-#### `generate_ecp_keypair() -> Tuple[ec.EllipticCurvePrivateKey, ec.EllipticCurvePublicKey]`
-* **Логика**: Генерирует ключевую пару на стандартной эллиптической кривой SECP384R1 (NIST P-384).
+#### `generate_ecp_keypair(mode: Union[int, str] = 512) -> Tuple[GostPrivateKey, GostPublicKey]`
+* **Логика**: Генерирует криптографически стойкий случайный скаляр $d \in [1, q-1]$ через системный CSPRNG (`secrets.randbelow`) и вычисляет точку открытого ключа $Q = d \cdot P$. По умолчанию создает 512-битные ключи.
+
+#### `export_ecp_private_key_pem(private_key: GostPrivateKey) -> str`
+* **Логика**: Сериализует закрытый ключ в ASN.1 DER структуру PKCS#8 `PrivateKeyInfo` (с OID алгоритма и OID параметров кривой) и оборачивает в стандартный PEM-контейнер (`-----BEGIN PRIVATE KEY-----`).
+
+#### `export_ecp_public_key_pem(public_key: GostPublicKey) -> str`
+* **Логика**: Сериализует открытый ключ в ASN.1 DER структуру `SubjectPublicKeyInfo` (X.509) с OID кривой и координатами точки $(x, y)$ в BIT STRING, оборачивая в PEM (`-----BEGIN PUBLIC KEY-----`).
+
+#### `load_ecp_private_key_pem(pem_data: Union[str, bytes]) -> GostPrivateKey`
+* **Логика**: Декодирует Base64 и парсит ASN.1 DER (PKCS#8) или JSON-структуру в чистом Python, извлекая закрытый скаляр $d$ и OID параметров кривой.
+
+#### `load_ecp_public_key_pem(pem_data: Union[str, bytes]) -> GostPublicKey`
+* **Логика**: Декодирует Base64 и парсит ASN.1 DER (`SubjectPublicKeyInfo`) или JSON-структуру, восстанавливая точку $Q=(x, y)$ и параметры кривой.
+
+#### `sign_message(private_key: Union[GostPrivateKey, str, bytes], message: Union[str, bytes]) -> str`
+* **Логика**: Реализует **Алгоритм I ГОСТ Р 34.10-2012** (RFC 7091, раздел 6.1):
+  1. Вычисляет хэш сообщения $H = h(M)$ («Стрибог-512» или «Стрибог-256»).
+  2. Преобразует вектор в целое $\alpha$, вычисляет $e = \alpha \bmod q$ (если $e = 0$, то $e = 1$).
+  3. Генерирует эфемерное случайное число $k \in [1, q-1]$.
+  4. Вычисляет точку $C = k \cdot P$ и первую компоненту подписи $r = x_C \bmod q$ (если $r = 0$, повтор).
+  5. Вычисляет вторую компоненту подписи $s = (r \cdot d + k \cdot e) \bmod q$ (если $s = 0$, повтор).
+  6. Формирует вектор $\zeta = R \parallel S$ и возвращает его в кодировке Base64.
+
+#### `verify_message_signature(public_key: Union[GostPublicKey, str, bytes], message: Union[str, bytes], signature_b64: str) -> bool`
+* **Логика**: Реализует **Алгоритм II ГОСТ Р 34.10-2012** (RFC 7091, раздел 6.2):
+  1. Декодирует Base64, извлекает компоненты $r$ и $s$, проверяет $0 < r < q$ и $0 < s < q$.
+  2. Проверяет корректность открытого ключа $Q$ на кривой.
+  3. Вычисляет хэш сообщения $H = h(M)$, определяет $e = \alpha \bmod q$.
+  4. Находит мультипликативное обратное $v = e^{-1} \bmod q$.
+  5. Вычисляет веса $z_1 = s \cdot v \bmod q$ и $z_2 = -r \cdot v \bmod q$.
+  6. Находит точку $C = z_1 \cdot P + z_2 \cdot Q$.
+  7. Признает подпись подлинной тогда и только тогда, когда $x_C \bmod q == r$.
 
 #### `issue_self_signed_certificate(...) -> Dict[str, Union[str, int]]`
 * **Входные параметры**: `username`, `user_id`, `private_key`, `public_key`, `valid_days=365`.
 * **Логика**:
-  1. Формирует структуру сертификата с уникальным серийным номером (UUID4) и датами действия.
-  2. Вычисляет канонический JSON-дайджест структуры через `streebog512`.
-  3. Накладывает подпись закрытым ключом ECDSA.
-  4. Добавляет подпись в поле `signature` в Base64.
+  1. Формирует структуру сертификата с уникальным UUID4 серийным номером, субъектом, издателем и датами действия.
+  2. Вычисляет канонический JSON-дайджест структуры.
+  3. Накладывает подпись закрытым ключом ГОСТ Р 34.10-2012 через `sign_message`.
+  4. Сохраняет подпись в поле `signature` в Base64.
 
 #### `verify_certificate(cert_data: Dict) -> bool`
-* **Логика**: Извлекает подпись, восстанавливает канонический дайджест оставшихся полей по «Стрибог-512» и выполняет верификацию открытым ключом, указанным в самом сертификате.
-
-#### `sign_message(private_key: ec.EllipticCurvePrivateKey, message: Union[str, bytes]) -> str`
-* **Логика**: Хеширует входное сообщение через `streebog512`, вычисляет подпись ECDSA и возвращает ее в кодировке Base64.
-
-#### `verify_message_signature(public_key: ec.EllipticCurvePublicKey, message: Union[str, bytes], signature_b64: str) -> bool`
-* **Логика**: Проверяет подлинность переданной подписи `signature_b64` относительно открытого текста `message` и открытого ключа `public_key`.
+* **Логика**: Проверяет срок действия сертификата (`valid_to`), извлекает открытый ключ пользователя, канонизирует структуру полей и проверяет подлинность подписи по Алгоритму II ГОСТ Р 34.10-2012.
 
 ---
 
@@ -455,6 +500,7 @@
 * Поддерживает операции `--encrypt` (гибридное шифрование открытым ключом) и `--decrypt` (расшифрование закрытым ключом).
 
 ## 4.3. Демонстрационные команды
+* `demo-ecp` (или `ecp --demo`): Полная сквозная демонстрация ЭЦП ГОСТ Р 34.10-2012 (проверка официального эталонного вектора RFC 7091, живой цикл подписи и верификации 512-битным ключом со «Стрибог-512», выпуск и проверка сертификата).
 * `demo-rsa-4k`: Быстрая сквозная демонстрация RSA-4096 (генерация, шифрование, расшифрование, проверка совпадения).
 * `demo-rsa-32k`: Демонстрация экстремального RSA-32K (поддерживает флаг `--pregen` для мгновенного запуска).
 * `kuznyechik --demo`: Проверка эталонного примера RFC 7801.

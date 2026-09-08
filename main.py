@@ -15,16 +15,16 @@ if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(200000)
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
-from database import Base, SessionLocal, engine, get_db
-from models.message import Message
-from models.user import User
+from cryptomail.database import Base, SessionLocal, engine, get_db
+from cryptomail.models.message import Message
+from cryptomail.models.user import User
 from crypto.ecp import (
     export_ecp_private_key_pem,
     export_ecp_public_key_pem,
@@ -37,7 +37,7 @@ from crypto.ecp import (
     verify_message_signature,
 )
 from crypto.kuznyechik import Kuznyechik
-from crypto.rsa32k import (
+from crypto.rsa import (
     export_private_key_pem,
     export_public_key_pem,
     generate_rsa_keypair,
@@ -48,7 +48,7 @@ from crypto.rsa32k import (
     rsa_encrypt_hybrid,
 )
 from crypto.streebog import hmac_streebog512, streebog256, streebog512
-from services.auth_service import (
+from cryptomail.services.auth_service import (
     PENDING_3FA_SESSIONS,
     complete_password_reset,
     get_totp_token,
@@ -60,15 +60,16 @@ from services.auth_service import (
     verify_3fa_factor2,
     verify_3fa_factor3,
 )
-from services.export_service import (
+from cryptomail.services.export_service import (
     collect_admin_messages_data,
     collect_user_messages_data,
     export_to_json_bytes,
     export_to_pdf_bytes,
+    generate_signed_message_pdf,
 )
-from services.mail_server import RECEIVED_EMAILS, smtp_server
-from services.message_service import decrypt_message_content, send_message
-from services.crypto_task_service import (
+from cryptomail.services.mail_server import RECEIVED_EMAILS, clear_received_emails, smtp_server
+from cryptomail.services.message_service import decrypt_message_content, send_message
+from cryptomail.services.crypto_task_service import (
     clear_cached_decrypted_message,
     get_cached_decrypted_message,
     get_task,
@@ -106,12 +107,72 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="CryptoMail", lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SESSION_SECRET", "cryptomail-gost-secret-session-key-2026"))
 
-# Mount Material 3 Expressive Stylesheet & Theme Script
-if os.path.exists("templates/style"):
-    app.mount("/templates/style", StaticFiles(directory="templates/style"), name="templates_style")
-    app.mount("/style", StaticFiles(directory="templates/style"), name="style")
+# Paths resolution
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "cryptomail", "templates")
+STYLE_DIR = os.path.join(TEMPLATES_DIR, "style")
 
-templates = Jinja2Templates(directory="templates")
+# Mount Material 3 Expressive Stylesheet & Theme Script
+if os.path.exists(STYLE_DIR):
+    app.mount("/templates/style", StaticFiles(directory=STYLE_DIR), name="templates_style")
+    app.mount("/style", StaticFiles(directory=STYLE_DIR), name="style")
+    app.mount("/cryptomail/style", StaticFiles(directory=STYLE_DIR), name="cryptomail_style")
+
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+
+# --- Static Fallbacks & Utilities ---
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
+
+@app.get("/main.css", include_in_schema=False)
+def main_css():
+    css_path = os.path.join(STYLE_DIR, "material3.css")
+    if os.path.exists(css_path):
+        return FileResponse(css_path, media_type="text/css")
+    return Response(status_code=404)
+
+
+@app.get("/app.js", include_in_schema=False)
+def app_js():
+    js_path = os.path.join(STYLE_DIR, "crypto_tracker.js")
+    if os.path.exists(js_path):
+        return FileResponse(js_path, media_type="application/javascript")
+    return Response(status_code=404)
+
+
+# --- Route Aliases for Legacy & Common URLs ---
+@app.get("/inbox", include_in_schema=False)
+def inbox_redirect():
+    return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/outbox", include_in_schema=False)
+def outbox_redirect():
+    return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/compose", include_in_schema=False)
+def compose_redirect():
+    return RedirectResponse(url="/messages/compose", status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/message/{message_id}", include_in_schema=False)
+def message_alias_redirect(message_id: int):
+    return RedirectResponse(url=f"/messages/{message_id}", status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/keys", include_in_schema=False)
+def keys_redirect():
+    return RedirectResponse(url="/ecp", status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/forgot-password", include_in_schema=False)
+def forgot_password_redirect():
+    return RedirectResponse(url="/recover-password", status_code=status.HTTP_302_FOUND)
+
 
 
 # --- Auth Dependency ---
@@ -329,10 +390,35 @@ def logout(request: Request):
     return RedirectResponse(url="/login")
 
 
-# --- Password Recovery Form ---
+# --- Password Recovery Form & Code Dispatch ---
 @app.get("/recover-password", response_class=HTMLResponse)
 def recover_password_form(request: Request):
     return templates.TemplateResponse("recover_password.html", {"request": request, "user": None})
+
+
+@app.post("/recover-password/send-code")
+def send_recovery_code_action(
+    request: Request,
+    email_or_username: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    ident = email_or_username.strip()
+    sess_id, err = initiate_password_reset(db, ident)
+    if sess_id:
+        request.session["reset_session"] = sess_id
+        return templates.TemplateResponse("recover_password.html", {
+            "request": request,
+            "success_message": "Одноразовый код для сброса пароля успешно отправлен на почту! Проверьте MailTrap или ваш email.",
+            "email_or_username": ident,
+            "user": None,
+        })
+    else:
+        return templates.TemplateResponse("recover_password.html", {
+            "request": request,
+            "error": err or "Пользователь не найден.",
+            "email_or_username": ident,
+            "user": None,
+        })
 
 
 @app.post("/recover-password", response_class=HTMLResponse)
@@ -343,7 +429,8 @@ def recover_password_action(
     new_password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    ok, err = complete_password_reset(db, None, email_or_username, verification_code, new_password)
+    reset_session = request.session.get("reset_session")
+    ok, err = complete_password_reset(db, reset_session, email_or_username, verification_code, new_password)
     if not ok:
         return templates.TemplateResponse("recover_password.html", {
             "request": request,
@@ -352,9 +439,10 @@ def recover_password_action(
             "user": None,
         })
 
+    request.session.pop("reset_session", None)
     return templates.TemplateResponse("recover_password.html", {
         "request": request,
-        "success_message": "Пароль успешно обновлен! Теперь вы можете войти с новым паролем.",
+        "success_message": "Пароль успешно обновлен (хэш ГОСТ Стрибог-512)! Теперь вы можете войти с новым паролем.",
         "user": None,
     })
 
@@ -371,18 +459,21 @@ def mailtrap_view(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/api/mailtrap/messages")
-def api_mailtrap_messages():
+def api_mailtrap_messages(admin: User = Depends(require_admin)):
+    """Returns received emails — restricted to administrators only."""
     return JSONResponse(RECEIVED_EMAILS)
+
+
+@app.post("/mailtrap/clear")
+def mailtrap_clear(request: Request):
+    clear_received_emails()
+    return RedirectResponse(url="/mailtrap", status_code=status.HTTP_303_SEE_OTHER)
 
 
 # --- Messages: Compose & View ---
 @app.get("/messages/compose", response_class=HTMLResponse)
 def compose_view(request: Request, db: Session = Depends(get_db)):
     user = require_auth(request, db)
-    if user.role == "guest":
-        request.session["alert_message"] = "Пользователи с рангом «Гость» не могут отправлять сообщения."
-        request.session["alert_type"] = "error"
-        return RedirectResponse(url="/")
 
     potential_recipients = db.query(User).filter(User.id != user.id).all()
     for r in potential_recipients:
@@ -408,10 +499,11 @@ def compose_action(
     subject: str = Form(...),
     body: str = Form(...),
     encryption_type: str = Form(...),
+    kuz_passphrase: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     user = require_auth(request, db)
-    msg, err = send_message(db, user, recipient_id, subject.strip(), body.strip(), encryption_type)
+    msg, err = send_message(db, user, recipient_id, subject.strip(), body.strip(), encryption_type, kuz_passphrase=kuz_passphrase)
     if err:
         potential_recipients = db.query(User).filter(User.id != user.id).all()
         for r in potential_recipients:
@@ -612,6 +704,51 @@ def export_my_messages_pdf(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/messages/{message_id}/export/pdf")
+def export_single_message_pdf(message_id: int, request: Request, db: Session = Depends(get_db)):
+    """
+    Exports a single message to an official PDF containing plaintext, ciphertext,
+    and digitally signs the generated PDF with user's ЭЦП (ГОСТ Стрибог-512).
+    """
+    user = require_auth(request, db)
+    msg = db.query(Message).filter(Message.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Сообщение не найдено.")
+    if user.role != "admin" and user.id not in (msg.sender_id, msg.recipient_id):
+        raise HTTPException(status_code=403, detail="Доступ запрещен.")
+
+    pdf_bytes, sig_b64, meta = generate_signed_message_pdf(db, msg, user)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="message_{msg.id}_signed_ecp.pdf"',
+            "X-CryptoMail-ECP-Signature": sig_b64,
+        },
+    )
+
+
+@app.get("/messages/{message_id}/export/sig")
+def export_single_message_sig(message_id: int, request: Request, db: Session = Depends(get_db)):
+    """
+    Exports detached digital signature (.sig JSON) for the generated PDF.
+    """
+    user = require_auth(request, db)
+    msg = db.query(Message).filter(Message.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Сообщение не найдено.")
+    if user.role != "admin" and user.id not in (msg.sender_id, msg.recipient_id):
+        raise HTTPException(status_code=403, detail="Доступ запрещен.")
+
+    pdf_bytes, sig_b64, meta = generate_signed_message_pdf(db, msg, user)
+    sig_payload = json.dumps(meta, indent=2, ensure_ascii=False).encode("utf-8")
+    return Response(
+        content=sig_payload,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="message_{msg.id}_signature.sig"'},
+    )
+
+
 # --- Admin Panel & Admin Exports ---
 @app.get("/admin", response_class=HTMLResponse)
 def admin_panel_view(request: Request, db: Session = Depends(get_db)):
@@ -635,7 +772,7 @@ def admin_panel_view(request: Request, db: Session = Depends(get_db)):
 def admin_change_role(user_id: int, request: Request, role: str = Form(...), db: Session = Depends(get_db)):
     require_admin(request, db)
     target = db.query(User).filter(User.id == user_id).first()
-    if target and role in ("guest", "user", "admin"):
+    if target and role in ("user", "admin"):
         target.role = role
         db.commit()
         request.session["alert_message"] = f"Ранг пользователя {target.username} изменен на: {target.role_title_ru}."
@@ -750,15 +887,11 @@ async def api_crypto_encrypt_task(
     subject: str = Form(...),
     body: str = Form(...),
     encryption_type: str = Form(...),
+    kuz_passphrase: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     user = require_auth(request, db)
-    if user.role == "guest":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Пользователи с рангом «Гость» имеют доступ только для чтения.",
-        )
-    task_id = start_encryption_task(user.id, recipient_id, subject.strip(), body.strip(), encryption_type)
+    task_id = start_encryption_task(user.id, recipient_id, subject.strip(), body.strip(), encryption_type, kuz_passphrase=kuz_passphrase)
     return JSONResponse({"ok": True, "task_id": task_id})
 
 
@@ -845,8 +978,13 @@ class ECPVerifyRequest(BaseModel):
 
 
 @app.post("/api/v1/crypto/rsa/generate")
-def api_rsa_generate(req: RSAGenRequest):
-    priv, pub = generate_rsa_keypair(key_size=req.bits)
+def api_rsa_generate(req: RSAGenRequest, _user: User = Depends(require_auth)):
+    if req.bits > 32768 or req.bits < 512:
+        raise HTTPException(status_code=400, detail="Размер ключа RSA должен быть в диапазоне от 512 до 32768 бит.")
+    if req.bits >= 32768:
+        priv, pub = get_or_create_rsa_keypair(key_size=req.bits)
+    else:
+        priv, pub = generate_rsa_keypair(key_size=req.bits)
     return {
         "bits": req.bits,
         "private_key_pem": export_private_key_pem(priv),
@@ -855,21 +993,21 @@ def api_rsa_generate(req: RSAGenRequest):
 
 
 @app.post("/api/v1/crypto/rsa/encrypt")
-def api_rsa_encrypt(req: RSAEncryptRequest):
+def api_rsa_encrypt(req: RSAEncryptRequest, _user: User = Depends(require_auth)):
     pub = load_public_key_pem(req.public_key_pem)
     bundle = rsa_encrypt_hybrid(pub, req.data)
     return {"encrypted_bundle": bundle}
 
 
 @app.post("/api/v1/crypto/rsa/decrypt")
-def api_rsa_decrypt(req: RSADecryptRequest):
+def api_rsa_decrypt(req: RSADecryptRequest, _user: User = Depends(require_auth)):
     priv = load_private_key_pem(req.private_key_pem)
     decrypted = rsa_decrypt_hybrid(priv, req.bundle_json)
     return {"decrypted_data": decrypted.decode("utf-8", errors="replace")}
 
 
 @app.post("/api/v1/crypto/kuznyechik/encrypt")
-def api_kuznyechik_encrypt(req: KuznyechikRequest):
+def api_kuznyechik_encrypt(req: KuznyechikRequest, _user: User = Depends(require_auth)):
     key = bytes.fromhex(req.key_hex)
     cipher = Kuznyechik(key)
     raw = req.data.encode("utf-8")
@@ -878,7 +1016,7 @@ def api_kuznyechik_encrypt(req: KuznyechikRequest):
 
 
 @app.post("/api/v1/crypto/kuznyechik/decrypt")
-def api_kuznyechik_decrypt(req: KuznyechikRequest):
+def api_kuznyechik_decrypt(req: KuznyechikRequest, _user: User = Depends(require_auth)):
     key = bytes.fromhex(req.key_hex)
     cipher = Kuznyechik(key)
     raw = base64.b64decode(req.data)
@@ -887,7 +1025,7 @@ def api_kuznyechik_decrypt(req: KuznyechikRequest):
 
 
 @app.post("/api/v1/crypto/streebog/hash")
-def api_streebog_hash(req: StreebogRequest):
+def api_streebog_hash(req: StreebogRequest, _user: User = Depends(require_auth)):
     raw = req.data.encode("utf-8")
     if req.key:
         tag = hmac_streebog512(req.key.encode("utf-8"), raw)
@@ -900,14 +1038,14 @@ def api_streebog_hash(req: StreebogRequest):
 
 
 @app.post("/api/v1/crypto/ecp/sign")
-def api_ecp_sign(req: ECPSignRequest):
+def api_ecp_sign(req: ECPSignRequest, _user: User = Depends(require_auth)):
     priv = load_ecp_private_key_pem(req.private_key_pem)
     sig = sign_message(priv, req.data)
     return {"signature_b64": sig, "digest_algorithm": "GOST R 34.11-2012 Streebog-512"}
 
 
 @app.post("/api/v1/crypto/ecp/verify")
-def api_ecp_verify(req: ECPVerifyRequest):
+def api_ecp_verify(req: ECPVerifyRequest, _user: User = Depends(require_auth)):
     pub = load_ecp_public_key_pem(req.public_key_pem)
     valid = verify_message_signature(pub, req.data, req.signature_b64)
     return {"is_valid": valid}

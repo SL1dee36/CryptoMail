@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Вход: Фактор 2 — CryptoMail{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-8">
+    <div class="m3-card p-8">
+        <!-- 3FA Material Stepper -->
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-[var(--md-color-outline-variant)] text-xs">
+            <div class="flex items-center space-x-2 font-medium text-[var(--md-color-tertiary)]">
+                <span class="w-6 h-6 rounded-full m3-step-done flex items-center justify-center text-xs"><i class="fa-solid fa-check text-[10px]"></i></span>
+                <span>Пароль</span>
+            </div>
+            <div class="w-8 h-0.5 bg-[var(--md-color-primary)]"></div>
+            <div class="flex items-center space-x-2 font-bold text-[var(--md-color-primary)]">
+                <span class="w-6 h-6 rounded-full m3-step-active flex items-center justify-center text-xs">2</span>
+                <span>Email</span>
+            </div>
+            <div class="w-8 h-0.5 bg-[var(--md-color-outline-variant)]"></div>
+            <div class="flex items-center space-x-2 opacity-50">
+                <span class="w-6 h-6 rounded-full m3-step-inactive flex items-center justify-center text-xs">3</span>
+                <span>Код</span>
+            </div>
+        </div>
+
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 rounded-2xl m3-badge-secondary mx-auto flex items-center justify-center mb-3">
+                <i class="fa-solid fa-envelope-open-text text-xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">Подтверждение по почте</h1>
+            <p class="text-xs opacity-75 mt-1">
+                Шаг 2 из 3: Код отправлен на <span class="font-bold">{{ user_email }}</span>
+            </p>
+        </div>
+
+        <!-- MailTrap Helper Box -->
+        <div class="mb-5 p-3 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] flex items-center justify-between">
+            <span class="text-xs opacity-75">Проверить письмо:</span>
+            <a href="/mailtrap" target="_blank"
+               class="m3-btn-tonal text-xs py-1 px-2.5 flex items-center space-x-1.5">
+                <i class="fa-solid fa-inbox text-[10px]"></i>
+                <span>Почта 3FA</span>
+            </a>
+        </div>
+
+        {% if error %}
+            <div class="mb-5 p-3.5 rounded-xl m3-badge-error text-xs flex items-start space-x-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                <span>{{ error }}</span>
+            </div>
+        {% endif %}
+
+        <form method="POST" action="/login/factor2" class="space-y-4">
+            <input type="hidden" name="session_id" value="{{ session_id }}">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-center opacity-80">
+                    Код из письма
+                </label>
+                <input type="text" name="otp_code" required autofocus maxlength="6"
+                       placeholder="123456"
+                       class="m3-input text-center text-xl mono tracking-[0.5em] font-bold">
+            </div>
+
+            <button type="submit" class="w-full mt-4 py-3 m3-btn-filled text-sm">
+                <span>Подтвердить</span>
+                <i class="fa-solid fa-arrow-right text-xs"></i>
+            </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-[var(--md-color-outline-variant)] text-center text-xs opacity-75">
+            <a href="/login" class="hover:underline">&larr; Назад</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,932 @@
+/* =========================================================================
+   CryptoMail — Semantic Component Styles (classes.css)
+   Clean, unified design classes for all templates.
+   Seamlessly integrates with Material Design 3 (material3.css) design tokens.
+   ========================================================================= */
+
+/* --- Base & Reset Enhancements --- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* --- Layout Containers --- */
+.cm-page-container {
+    width: 100%;
+    max-width: 80rem;
+    /* 1280px */
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+    .cm-page-container {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .cm-page-container {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+}
+
+.cm-main-content {
+    flex-grow: 1;
+    width: 100%;
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 1.5rem 1rem;
+}
+
+@media (min-width: 640px) {
+    .cm-main-content {
+        padding: 1.75rem 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .cm-main-content {
+        padding: 2rem;
+    }
+}
+
+/* --- Top App Bar (Navbar) --- */
+.cm-appbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background-color: var(--md-color-surface-container-low);
+    border-bottom: 1px solid var(--md-color-outline-variant);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.cm-appbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 4rem;
+    /* 64px */
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    gap: 0.75rem;
+}
+
+.cm-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    text-decoration: none;
+    color: var(--md-color-on-surface);
+    font-weight: 700;
+    font-size: 1.125rem;
+    letter-spacing: -0.015em;
+    flex-shrink: 0;
+    transition: opacity 0.15s ease;
+}
+
+.cm-brand:hover {
+    opacity: 0.85;
+}
+
+.cm-brand-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.75rem;
+    background-color: var(--md-color-primary-container);
+    color: var(--md-color-on-primary-container);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.cm-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.cm-user-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6.25rem;
+    background-color: var(--md-color-surface-container-high);
+    border: 1px solid var(--md-color-outline-variant);
+    font-size: 0.75rem;
+    color: var(--md-color-on-surface);
+}
+
+.cm-user-pill-name {
+    font-weight: 600;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- Footer --- */
+.cm-footer {
+    border-top: 1px solid var(--md-color-outline-variant);
+    background-color: var(--md-color-surface-container-low);
+    padding: 1.25rem 1rem;
+    margin-top: auto;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--md-color-on-surface-variant);
+    opacity: 0.8;
+}
+
+/* --- Surface Cards --- */
+.cm-card {
+    background-color: var(--md-color-surface-container);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 1.25rem;
+    /* 20px */
+    color: var(--md-color-on-surface);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.cm-card-sub {
+    background-color: var(--md-color-surface-container-low);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 1rem;
+    /* 16px */
+    color: var(--md-color-on-surface);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.cm-card-high {
+    background-color: var(--md-color-surface-container-high);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 1.25rem;
+}
+
+.cm-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.875rem;
+    border-bottom: 1px solid var(--md-color-outline-variant);
+    margin-bottom: 1rem;
+    gap: 0.75rem;
+}
+
+.cm-card-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
+/* Centered Form / Auth Container */
+.cm-auth-wrapper {
+    max-width: 28rem;
+    /* 448px */
+    width: 100%;
+    margin: 2rem auto;
+}
+
+.cm-auth-wrapper-wide {
+    max-width: 38rem;
+    /* 608px */
+    width: 100%;
+    margin: 2rem auto;
+}
+
+.cm-auth-card {
+    padding: 2rem;
+}
+
+@media (max-width: 640px) {
+    .cm-auth-card {
+        padding: 1.5rem;
+    }
+}
+
+.cm-auth-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.cm-auth-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 1rem;
+    margin: 0 auto 0.75rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+}
+
+.cm-auth-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.cm-auth-subtitle {
+    font-size: 0.8125rem;
+    color: var(--md-color-on-surface-variant);
+    margin-top: 0.375rem;
+    margin-bottom: 0;
+}
+
+/* --- Buttons --- */
+.cm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 6.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    padding: 0.5rem 1.125rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.cm-btn:hover {
+    opacity: 0.9;
+}
+
+.cm-btn:active {
+    transform: scale(0.985);
+}
+
+.cm-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.cm-btn-primary {
+    background-color: var(--md-color-primary);
+    color: var(--md-color-on-primary);
+}
+
+.cm-btn-secondary {
+    background-color: var(--md-color-secondary);
+    color: var(--md-color-on-secondary);
+}
+
+.cm-btn-tonal {
+    background-color: var(--md-color-secondary-container);
+    color: var(--md-color-on-secondary-container);
+}
+
+.cm-btn-outlined {
+    background-color: transparent;
+    color: var(--md-color-on-surface);
+    border-color: var(--md-color-outline);
+}
+
+.cm-btn-outlined:hover {
+    background-color: var(--md-color-surface-container-high);
+}
+
+.cm-btn-danger {
+    background-color: var(--md-color-error-container);
+    color: var(--md-color-on-error-container);
+}
+
+.cm-btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    gap: 0.35rem;
+}
+
+.cm-btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
+    gap: 0.5rem;
+}
+
+.cm-btn-full {
+    width: 100%;
+}
+
+.cm-btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 6.25rem;
+    border: 1px solid var(--md-color-outline-variant);
+    background-color: var(--md-color-surface-container-low);
+}
+
+/* --- Badges & Chips --- */
+.cm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.cm-badge-primary {
+    background-color: var(--md-color-primary-container);
+    color: var(--md-color-on-primary-container);
+}
+
+.cm-badge-secondary {
+    background-color: var(--md-color-secondary-container);
+    color: var(--md-color-on-secondary-container);
+}
+
+.cm-badge-success {
+    background-color: var(--md-color-tertiary-container);
+    color: var(--md-color-on-tertiary-container);
+}
+
+.cm-badge-warning {
+    background-color: var(--md-color-warning-container);
+    color: var(--md-color-on-warning-container);
+}
+
+.cm-badge-error {
+    background-color: var(--md-color-error-container);
+    color: var(--md-color-on-error-container);
+}
+
+.cm-badge-neutral {
+    background-color: var(--md-color-surface-container-highest);
+    color: var(--md-color-on-surface-variant);
+    border-color: var(--md-color-outline-variant);
+}
+
+.cm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 6.25rem;
+    background-color: var(--md-color-surface-container-high);
+    border: 1px solid var(--md-color-outline-variant);
+    font-size: 0.75rem;
+    color: var(--md-color-on-surface);
+}
+
+.cm-chip-btn {
+    cursor: pointer;
+    background-color: var(--md-color-surface-container-high);
+    border: 1px solid var(--md-color-outline-variant);
+    color: var(--md-color-primary);
+    font-weight: 600;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.cm-chip-btn:hover {
+    background-color: var(--md-color-surface-container-highest);
+    border-color: var(--md-color-primary);
+}
+
+/* --- Form Controls --- */
+.cm-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+}
+
+.cm-form-group:last-child {
+    margin-bottom: 0;
+}
+
+.cm-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--md-color-on-surface-variant);
+}
+
+.cm-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.cm-input-icon {
+    position: absolute;
+    left: 0.875rem;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    color: var(--md-color-outline);
+    font-size: 0.875rem;
+}
+
+.cm-input {
+    width: 100%;
+    background-color: var(--md-color-surface-container-highest);
+    color: var(--md-color-on-surface);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 0.875rem;
+    padding: 0.65rem 0.875rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.cm-input-with-icon {
+    padding-left: 2.5rem;
+}
+
+.cm-input:focus,
+.cm-select:focus,
+.cm-textarea:focus {
+    border-color: var(--md-color-primary);
+    background-color: var(--md-color-surface-container-lowest);
+}
+
+.cm-input::placeholder,
+.cm-textarea::placeholder {
+    color: var(--md-color-on-surface-variant);
+    opacity: 0.65;
+}
+
+.cm-input-otp {
+    text-align: center;
+    font-size: 1.25rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: 0.35em;
+    font-weight: 700;
+}
+
+.cm-select {
+    width: 100%;
+    background-color: var(--md-color-surface-container-highest);
+    color: var(--md-color-on-surface);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 0.875rem;
+    padding: 0.65rem 0.875rem;
+    font-size: 0.8125rem;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    cursor: pointer;
+}
+
+.cm-textarea {
+    width: 100%;
+    background-color: var(--md-color-surface-container-highest);
+    color: var(--md-color-on-surface);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 0.875rem;
+    padding: 0.75rem 0.875rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    resize: vertical;
+}
+
+.cm-helper-text {
+    font-size: 0.6875rem;
+    color: var(--md-color-on-surface-variant);
+    margin-top: 0.25rem;
+    opacity: 0.75;
+}
+
+/* --- Feedback / Alert Banners --- */
+.cm-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    margin-bottom: 1rem;
+}
+
+.cm-alert-error {
+    background-color: var(--md-color-error-container);
+    color: var(--md-color-on-error-container);
+    border-color: rgba(186, 26, 26, 0.25);
+}
+
+.cm-alert-success {
+    background-color: var(--md-color-tertiary-container);
+    color: var(--md-color-on-tertiary-container);
+    border-color: rgba(45, 107, 87, 0.25);
+}
+
+.cm-alert-warning {
+    background-color: var(--md-color-warning-container);
+    color: var(--md-color-on-warning-container);
+    border-color: rgba(124, 88, 0, 0.25);
+}
+
+.cm-alert-info {
+    background-color: var(--md-color-primary-container);
+    color: var(--md-color-on-primary-container);
+    border-color: rgba(0, 95, 176, 0.25);
+}
+
+/* --- Fluid 3FA Stepper (No Overlaps on Mobile) --- */
+.cm-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--md-color-outline-variant);
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.cm-step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.cm-step-circle {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.cm-step-active .cm-step-circle {
+    background-color: var(--md-color-primary);
+    color: var(--md-color-on-primary);
+}
+
+.cm-step-active {
+    color: var(--md-color-primary);
+}
+
+.cm-step-done .cm-step-circle {
+    background-color: var(--md-color-tertiary);
+    color: var(--md-color-on-tertiary);
+}
+
+.cm-step-done {
+    color: var(--md-color-tertiary);
+}
+
+.cm-step-inactive {
+    opacity: 0.5;
+    color: var(--md-color-on-surface-variant);
+}
+
+.cm-step-inactive .cm-step-circle {
+    background-color: var(--md-color-surface-container-highest);
+    color: var(--md-color-on-surface-variant);
+}
+
+.cm-step-divider {
+    flex: 1 1 0.75rem;
+    height: 2px;
+    background-color: var(--md-color-outline-variant);
+    min-width: 0.5rem;
+}
+
+.cm-step-divider.active {
+    background-color: var(--md-color-primary);
+}
+
+.cm-step-divider.done {
+    background-color: var(--md-color-tertiary);
+}
+
+/* --- Radio Selection Cards (Algorithm pickers) --- */
+.cm-radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: 1rem;
+    border: 1px solid var(--md-color-outline-variant);
+    background-color: var(--md-color-surface-container-low);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    user-select: none;
+}
+
+.cm-radio-card:hover {
+    border-color: var(--md-color-primary);
+    background-color: var(--md-color-surface-container);
+}
+
+.cm-radio-card input[type="radio"] {
+    margin-top: 0.2rem;
+    cursor: pointer;
+    accent-color: var(--md-color-primary);
+}
+
+/* --- Message Lists & Inbox / Outbox Cards --- */
+.cm-message-item {
+    display: block;
+    padding: 0.875rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid var(--md-color-outline-variant);
+    background-color: var(--md-color-surface-container-low);
+    text-decoration: none;
+    color: var(--md-color-on-surface);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    margin-bottom: 0.625rem;
+}
+
+.cm-message-item:last-child {
+    margin-bottom: 0;
+}
+
+.cm-message-item:hover {
+    background-color: var(--md-color-surface-container-high);
+    border-color: var(--md-color-outline);
+}
+
+.cm-message-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    margin-bottom: 0.375rem;
+    gap: 0.5rem;
+}
+
+.cm-message-user {
+    font-weight: 700;
+    color: var(--md-color-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cm-message-date {
+    font-size: 0.6875rem;
+    color: var(--md-color-on-surface-variant);
+    opacity: 0.75;
+    flex-shrink: 0;
+}
+
+.cm-message-subject {
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.35;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cm-message-footer-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
+}
+
+/* --- Empty State Placeholder --- */
+.cm-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--md-color-on-surface-variant);
+    opacity: 0.7;
+    flex-grow: 1;
+}
+
+.cm-empty-state-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.55;
+}
+
+.cm-empty-state-text {
+    font-size: 0.8125rem;
+    max-width: 20rem;
+    margin: 0;
+}
+
+/* --- Tables & Data Grid --- */
+.cm-table-container {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 0.875rem;
+    border: 1px solid var(--md-color-outline-variant);
+    background-color: var(--md-color-surface-container);
+}
+
+.cm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    text-align: left;
+}
+
+.cm-table th {
+    background-color: var(--md-color-surface-container-high);
+    color: var(--md-color-on-surface-variant);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--md-color-outline-variant);
+    white-space: nowrap;
+}
+
+.cm-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--md-color-outline-variant);
+    color: var(--md-color-on-surface);
+    vertical-align: middle;
+}
+
+.cm-table tr:last-child td {
+    border-bottom: none;
+}
+
+.cm-table tr:hover td {
+    background-color: var(--md-color-surface-container-high);
+}
+
+/* --- Code & Monospace Blocks --- */
+.cm-code-block {
+    background-color: var(--md-color-surface-container-highest);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    user-select: all;
+    color: var(--md-color-on-surface);
+    line-height: 1.45;
+}
+
+/* --- Floating Crypto Dock (Bottom-Right) - Overlap & Layout Fixes --- */
+.cm-crypto-dock {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 9999;
+    max-width: calc(100vw - 2rem);
+    width: 24rem;
+    /* 384px */
+    font-family: inherit;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+@media (max-width: 480px) {
+    .cm-crypto-dock {
+        bottom: 0.75rem;
+        right: 0.75rem;
+        width: calc(100vw - 1.5rem);
+    }
+}
+
+.cm-dock-card {
+    background-color: var(--md-color-surface-container-low);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 1.25rem;
+    overflow: hidden;
+}
+
+.cm-dock-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background-color: var(--md-color-surface-container);
+    border-bottom: 1px solid var(--md-color-outline-variant);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease;
+}
+
+.cm-dock-header:hover {
+    background-color: var(--md-color-surface-container-high);
+}
+
+.cm-dock-body {
+    padding: 1rem;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.cm-dock-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.cm-dock-metric {
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.75rem;
+    background-color: var(--md-color-surface-container);
+    border: 1px solid var(--md-color-outline-variant);
+}
+
+.cm-dock-metric-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.cm-dock-metric-val {
+    font-size: 0.875rem;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    margin-top: 0.25rem;
+}
+
+/* --- Floating Top Toast --- */
+.cm-top-toast {
+    position: fixed;
+    top: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+.cm-toast-card {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 6.25rem;
+    background-color: rgba(6, 78, 59, 0.95);
+    color: #ffffff;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    backdrop-filter: blur(8px);
+}
+
+/* --- Modals --- */
+.cm-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.cm-modal-card {
+    width: 100%;
+    max-width: 26rem;
+    background-color: var(--md-color-surface-container);
+    border: 1px solid var(--md-color-outline-variant);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+}

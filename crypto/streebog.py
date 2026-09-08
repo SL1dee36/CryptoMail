@@ -78,7 +78,7 @@ def _l_64(v_bytes: bytes) -> bytes:
     return res.to_bytes(8, byteorder="big")
 
 
-# RFC 6986 Section 6.5 Iteration Constants C[1]..C[12]
+# RFC 6986 Section 6.5 Iteration Constants C[1]..C[12] https://www.rfc-editor.org/info/rfc6986/
 _C_HEX = [
     "b1085bda1ecadae9ebcb2f81c0657c1f2f6a76432e45d016714eb88d7585c4fc4b7ce09192676901a2422a08a460d31505767436cc744d23dd806559f2a64507",
     "6fa3b58aa99d2f1a4fe39d460f70b5d7f3feea720a232b9861d55e0f16b501319ab5176b12d699585cb561c2db0aa7ca55dda21bd7cbcd56e679047021b19bb7",
@@ -150,69 +150,71 @@ def _g_N(h: bytes, m: bytes, n: bytes) -> bytes:
     return _xor(_xor(e_val, h), m)
 
 
-def streebog512(message: bytes) -> bytes:
-    """Computes GOST R 34.11-2012 512-bit hash."""
+def streebog512(message: bytes, rfc_format: bool = False) -> bytes:
+    """Computes GOST R 34.11-2012 512-bit hash matching CryptoPro CSP and RFC 6986.
+    Returns 64 bytes in standard byte order matching CryptoPro CSP (and RFC 6986 App A).
+    """
     h = bytes(64)  # IV = 0^512
     n = bytes(64)  # N = 0^512
     sigma = bytes(64)  # Sum = 0^512
 
-    offset = len(message)
-    while offset >= 64:
-        offset -= 64
-        m = message[offset:offset + 64]
+    data_len = len(message)
+    offset = 0
+    while offset + 64 <= data_len:
+        chunk = message[offset:offset + 64]
+        m = chunk[::-1]
         h = _g_N(h, m, n)
         n = _add_mod_512(n, (512).to_bytes(64, byteorder="big"))
         sigma = _add_mod_512(sigma, m)
+        offset += 64
 
-    # Padding remaining part
-    rem_len_bytes = offset
-    rem_len_bits = rem_len_bytes * 8
-    pad_len = 64 - rem_len_bytes - 1
-    m_pad = bytearray(64)
-    m_pad[:pad_len] = b"\x00" * pad_len
-    m_pad[pad_len] = 0x01
-    m_pad[pad_len + 1:] = message[:offset]
+    rem = message[offset:]
+    rem_len = len(rem)
+    rem_len_bits = rem_len * 8
+    pad_len = 64 - rem_len - 1
+    m_pad = bytes(pad_len) + b"\x01" + rem[::-1]
 
-    m = bytes(m_pad)
-    h = _g_N(h, m, n)
+    h = _g_N(h, m_pad, n)
     n = _add_mod_512(n, rem_len_bits.to_bytes(64, byteorder="big"))
-    sigma = _add_mod_512(sigma, m)
+    sigma = _add_mod_512(sigma, m_pad)
 
     h = _g_N(h, n, bytes(64))
     h = _g_N(h, sigma, bytes(64))
-    return h
+    return h if rfc_format else h[::-1]
 
 
-def streebog256(message: bytes) -> bytes:
-    """Computes GOST R 34.11-2012 256-bit hash."""
+def streebog256(message: bytes, rfc_format: bool = False) -> bytes:
+    """Computes GOST R 34.11-2012 256-bit hash matching CryptoPro CSP and RFC 6986.
+    Returns 32 bytes MSB_256(h) in standard byte order matching CryptoPro CSP (and RFC 6986 App A).
+    """
     h = b"\x01" * 64  # IV = 1^64
     n = bytes(64)
     sigma = bytes(64)
 
-    offset = len(message)
-    while offset >= 64:
-        offset -= 64
-        m = message[offset:offset + 64]
+    data_len = len(message)
+    offset = 0
+    while offset + 64 <= data_len:
+        chunk = message[offset:offset + 64]
+        m = chunk[::-1]
         h = _g_N(h, m, n)
         n = _add_mod_512(n, (512).to_bytes(64, byteorder="big"))
         sigma = _add_mod_512(sigma, m)
+        offset += 64
 
-    rem_len_bytes = offset
-    rem_len_bits = rem_len_bytes * 8
-    pad_len = 64 - rem_len_bytes - 1
-    m_pad = bytearray(64)
-    m_pad[:pad_len] = b"\x00" * pad_len
-    m_pad[pad_len] = 0x01
-    m_pad[pad_len + 1:] = message[:offset]
+    rem = message[offset:]
+    rem_len = len(rem)
+    rem_len_bits = rem_len * 8
+    pad_len = 64 - rem_len - 1
+    m_pad = bytes(pad_len) + b"\x01" + rem[::-1]
 
-    m = bytes(m_pad)
-    h = _g_N(h, m, n)
+    h = _g_N(h, m_pad, n)
     n = _add_mod_512(n, rem_len_bits.to_bytes(64, byteorder="big"))
-    sigma = _add_mod_512(sigma, m)
+    sigma = _add_mod_512(sigma, m_pad)
 
     h = _g_N(h, n, bytes(64))
     h = _g_N(h, sigma, bytes(64))
-    return h[:32]
+    res = h[:32]
+    return res if rfc_format else res[::-1]
 
 
 def hmac_streebog512(key: bytes, message: bytes) -> bytes:

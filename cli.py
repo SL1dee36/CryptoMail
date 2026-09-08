@@ -22,19 +22,23 @@ if sys.platform == "win32":
         pass
 
 from crypto.ecp import (
+    create_cms_signed_data,
     export_ecp_private_key_pem,
     export_ecp_public_key_pem,
     generate_ecp_keypair,
     issue_self_signed_certificate,
     load_ecp_private_key_pem,
     load_ecp_public_key_pem,
+    load_x509_certificate_pem,
+    sign_file,
     sign_message,
     verify_certificate,
+    verify_file_signature,
     verify_message_signature,
 )
 from crypto.kuznyechik import Kuznyechik
 from crypto.rsa_parallel import find_prime_parallel, generate_rsa_keypair_parallel
-from crypto.rsa32k import (
+from crypto.rsa import (
     build_rsa_keypair_from_primes,
     export_private_key_pem,
     export_public_key_pem,
@@ -146,17 +150,17 @@ def generate_and_save_pq(
         "candidates_tested": cands_p + cands_q_total,
     }
 
-    with open(json_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    # Write primary primes.json and p.txt, q.txt if bits == 32768 or primes.json does not exist
+    if bits == 32768 or not os.path.exists(json_file):
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        with open(p_file, "w", encoding="utf-8") as f:
+            f.write(str(p) + "\n")
+        with open(q_file, "w", encoding="utf-8") as f:
+            f.write(str(q) + "\n")
 
     with open(json_named_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-
-    with open(p_file, "w", encoding="utf-8") as f:
-        f.write(str(p) + "\n")
-
-    with open(q_file, "w", encoding="utf-8") as f:
-        f.write(str(q) + "\n")
 
     if verbose:
         print(f"[+] Параметры p и q успешно сохранены в: {target_dir}")
@@ -477,12 +481,71 @@ def cmd_streebog(args):
 
 
 def cmd_ecp(args):
+    if getattr(args, "demo", False):
+        print("=" * 70)
+        print("  ДЕМОНСТРАЦИЯ ЭЦП ГОСТ Р 34.10-2012 (RFC 7091 / RFC 7836)")
+        print("=" * 70)
+        from crypto.ecp import CURVE_GOST_2012_256, CURVE_GOST_2012_512, GostPrivateKey, GostPublicKey
+        
+        # 1. Test official RFC 7091 Section 7 test vector
+        print("\n[1] Проверка официального эталонного вектора RFC 7091 (ГОСТ Р 34.10-2012, 256 бит)...")
+        c256 = CURVE_GOST_2012_256
+        d_rfc = 0x7A929ADE789BB9BE10ED359DD39A72C11B60961F49397EEE1D19CE9891EC3B28
+        priv_rfc = GostPrivateKey(d_rfc, c256)
+        pub_rfc = priv_rfc.public_key()
+        
+        exp_xq = 0x7F2B49E270DB6D90D8595BEC458B50C58585BA1D4E9B788F6689DBD8E56FD80B
+        exp_yq = 0x26F1B489D6701DD185C8413A977B3CBBAF64D1C593D26627DFFB101A87FF77DA
+        assert (pub_rfc.x, pub_rfc.y) == (exp_xq, exp_yq), "RFC 7091 public key mismatch!"
+        print("  [*] Открытый ключ Q совпадает с эталоном RFC 7091: OK")
+        
+        e_rfc = 0x2DFBC1B372D89A1188C09C52E0EEC61FCE52032AB1022E8E67ECE6672B043EE5
+        k_rfc = 0x77105C9B20BCD3122823C8CF6FCC7B956DE33814E95B7FE64FED924594DCEAB3
+        C_rfc = c256.point_mul(k_rfc, c256.P)
+        r_rfc = C_rfc[0] % c256.q
+        s_rfc = (r_rfc * d_rfc + k_rfc * e_rfc) % c256.q
+        exp_r = 0x41AA28D2F1AB148280CD9ED56FEDA41974053554A42767B83AD043FD39DC0493
+        exp_s = 0x1456C64BA4642A1653C235A98A60249BCD6D3F746B631DF928014F6C5BF9C40
+        assert r_rfc == exp_r and s_rfc == exp_s, "RFC 7091 r/s mismatch!"
+        print(f"  [*] Компонента r: {hex(r_rfc)[:20]}... (совпадает с RFC 7091)")
+        print(f"  [*] Компонента s: {hex(s_rfc)[:20]}... (совпадает с RFC 7091)")
+        
+        # Verify via Algorithm II
+        sig_rfc_bytes = r_rfc.to_bytes(32, "big") + s_rfc.to_bytes(32, "big")
+        v_rfc = pow(e_rfc, -1, c256.q)
+        z1_rfc = (s_rfc * v_rfc) % c256.q
+        z2_rfc = (-r_rfc * v_rfc) % c256.q
+        C_ver = c256.point_add(c256.point_mul(z1_rfc, c256.P), c256.point_mul(z2_rfc, (pub_rfc.x, pub_rfc.y)))
+        assert C_ver[0] % c256.q == r_rfc
+        print("  [*] Верификация Алгоритма II: СОВПАДЕНИЕ R == r (100% эталон ГОСТ)")
+
+        # 2. Live test with ГОСТ Р 34.10-2012-512 + Стрибог-512
+        print("\n[2] Сквозной тест ГОСТ Р 34.10-2012-512 (хэш-функция «Стрибог-512»)...")
+        priv512, pub512 = generate_ecp_keypair(512)
+        test_msg = "Тестовое сообщение для проверки ЭЦП ГОСТ Р 34.10-2012"
+        sig_b64 = sign_message(priv512, test_msg)
+        is_valid = verify_message_signature(pub512, test_msg, sig_b64)
+        is_tampered = verify_message_signature(pub512, test_msg + " [tampered]", sig_b64)
+        print(f"  [*] Подпись сообщения base64 ({len(base64.b64decode(sig_b64))} байт): {sig_b64[:30]}...")
+        print(f"  [*] Результат верификации подлинного сообщения: {'ВЕРНА (OK)' if is_valid else 'ОШИБКА'}")
+        print(f"  [*] Результат верификации искаженного сообщения: {'ОТКЛОНЕНО (OK)' if not is_tampered else 'ОШИБКА'}")
+
+        # 3. Certificate generation and verification
+        print("\n[3] Тест самоподписанного сертификата ГОСТ...")
+        cert = issue_self_signed_certificate("demo_user", 101, priv512, pub512)
+        cert_valid = verify_certificate(cert)
+        print(f"  [*] Алгоритм сертификата: {cert['signature_algorithm']}")
+        print(f"  [*] Статус сертификата: {'ДЕЙСТВИТЕЛЕН (OK)' if cert_valid else 'НЕДЕЙСТВИТЕЛЕН'}")
+        print("=" * 70)
+        return
+
     if args.generate_cert:
         username = args.name or "User"
         user_id = args.user_id or 1
-        priv, pub = generate_ecp_keypair()
+        mode = getattr(args, "bits", 512) or 512
+        priv, pub = generate_ecp_keypair(mode)
         cert = issue_self_signed_certificate(username, user_id, priv, pub)
-        print(f"[+] Выпущен сертификат ЭЦП для пользователя {username}:")
+        print(f"[+] Выпущен сертификат ЭЦП для пользователя {username} (ГОСТ Р 34.10-2012-{priv.key_size}):")
         print(json.dumps(cert, indent=2, ensure_ascii=False))
 
         if args.out_priv:
@@ -495,7 +558,10 @@ def cmd_ecp(args):
             print(f"[+] Открытый ключ ЭЦП сохранен в {args.out_pub}")
         if args.out_cert:
             with open(args.out_cert, "w", encoding="utf-8") as f:
-                json.dump(cert, f, indent=2, ensure_ascii=False)
+                if args.out_cert.endswith(".crt") or args.out_cert.endswith(".pem"):
+                    f.write(cert.get("x509_pem", ""))
+                else:
+                    json.dump(cert, f, indent=2, ensure_ascii=False)
             print(f"[+] Сертификат сохранен в {args.out_cert}")
         return
 
@@ -503,34 +569,93 @@ def cmd_ecp(args):
         if not args.priv:
             print("[-] Ошибка: укажите файл закрытого ключа через --priv")
             sys.exit(1)
+        if not os.path.isfile(args.priv):
+            print(f"[-] Ошибка: файл закрытого ключа '{args.priv}' не найден.")
+            sys.exit(1)
         with open(args.priv, "r", encoding="utf-8") as f:
             priv_pem = f.read()
         priv = load_ecp_private_key_pem(priv_pem)
-        data = args.data or ""
-        if not data and args.in_file:
-            with open(args.in_file, "r", encoding="utf-8") as f:
+
+        if args.in_file:
+            if not os.path.isfile(args.in_file):
+                print(f"[-] Ошибка: входной файл '{args.in_file}' не найден. Укажите существующий файл для подписи.")
+                sys.exit(1)
+            with open(args.in_file, "rb") as f:
                 data = f.read()
-        sig = sign_message(priv, data)
-        print(f"[+] Цифровая подпись (ЭЦП ГОСТ Стрибог-512, base64):")
-        print(sig)
+        elif args.data is not None:
+            data = args.data.encode("utf-8")
+        else:
+            print("[-] Ошибка: укажите данные для подписи через --data или файл через --in-file")
+            sys.exit(1)
+
+        use_cms = not getattr(args, "raw_sig", False)
+        common_name = getattr(args, "name", None) or "Alice"
+        cert_path = getattr(args, "cert", None)
+
+        if use_cms:
+            cert_der = None
+            if cert_path and os.path.isfile(cert_path):
+                with open(cert_path, "rb") as f:
+                    cert_der = load_x509_certificate_pem(f.read())
+            sig_data = create_cms_signed_data(data, priv, cert_der=cert_der, common_name=common_name)
+            sig_b64 = base64.b64encode(sig_data).decode("ascii")
+            print(f"[+] Отсоединенная ЭЦП в формате CMS SignedData (ГОСТ Р 34.10-2012 / Стрибог-{priv.key_size}, base64):")
+            print(sig_b64)
+        else:
+            sig_data = priv.sign(data)
+            sig_b64 = base64.b64encode(sig_data).decode("ascii")
+            print(f"[+] Сырая цифровая подпись R||S (ГОСТ Р 34.10-2012 / Стрибог-{priv.key_size}, base64):")
+            print(sig_b64)
+
+        if getattr(args, "out_sig", None):
+            if getattr(args, "binary_sig", False):
+                with open(args.out_sig, "wb") as f:
+                    f.write(sig_data)
+                fmt_name = "бинарный ASN.1 DER" if use_cms else "бинарный R||S"
+                print(f"[+] Отсоединенная ЭЦП сохранена в {fmt_name} файл: {args.out_sig} ({len(sig_data)} байт)")
+            else:
+                with open(args.out_sig, "w", encoding="utf-8") as f:
+                    f.write(sig_b64)
+                fmt_name = "Base64 CMS (PKCS#7)" if use_cms else "Base64 R||S"
+                print(f"[+] Отсоединенная ЭЦП сохранена в {fmt_name} файл: {args.out_sig}")
         return
 
     if args.verify:
-        if not args.pub or not args.sig:
-            print("[-] Ошибка: укажите --pub и --sig для проверки")
+        sig_val = getattr(args, "sig_file", None) or args.sig
+        if not sig_val:
+            print("[-] Ошибка: укажите подпись через --sig или --sig-file для проверки")
             sys.exit(1)
-        with open(args.pub, "r", encoding="utf-8") as f:
-            pub_pem = f.read()
-        pub = load_ecp_public_key_pem(pub_pem)
-        data = args.data or ""
-        if not data and args.in_file:
-            with open(args.in_file, "r", encoding="utf-8") as f:
+
+        pub = None
+        if args.pub:
+            if not os.path.isfile(args.pub):
+                print(f"[-] Ошибка: файл открытого ключа '{args.pub}' не найден.")
+                sys.exit(1)
+            with open(args.pub, "r", encoding="utf-8") as f:
+                pub_pem = f.read()
+            pub = load_ecp_public_key_pem(pub_pem)
+
+        if args.in_file:
+            if not os.path.isfile(args.in_file):
+                print(f"[-] Ошибка: проверяемый файл '{args.in_file}' не найден.")
+                sys.exit(1)
+            with open(args.in_file, "rb") as f:
                 data = f.read()
-        valid = verify_message_signature(pub, data, args.sig)
+        elif args.data is not None:
+            data = args.data.encode("utf-8")
+        else:
+            print("[-] Ошибка: укажите проверяемые данные через --data или --in-file")
+            sys.exit(1)
+
+        if getattr(args, "sig_file", None) and not os.path.isfile(args.sig_file):
+            print(f"[-] Ошибка: файл подписи '{args.sig_file}' не найден.")
+            sys.exit(1)
+
+        valid = verify_message_signature(pub, data, sig_val)
         print(f"[+] Результат проверки ЭЦП: {'ПОДЛИННАЯ (ВЕРНА)' if valid else 'НЕДЕЙСТВИТЕЛЬНА'}")
         return
 
-    print("[-] Укажите операцию для ecp: --generate-cert, --sign или --verify")
+    print("[-] Укажите операцию для ecp: --generate-cert, --sign, --verify или --demo")
 
 
 def main():
@@ -598,14 +723,24 @@ def main():
     p_ecp.add_argument("--verify", action="store_true", help="Проверить подпись")
     p_ecp.add_argument("--priv", type=str, help="Файл закрытого ключа ЭЦП")
     p_ecp.add_argument("--pub", type=str, help="Файл открытого ключа ЭЦП")
-    p_ecp.add_argument("--sig", type=str, help="Цифровая подпись в base64")
+    p_ecp.add_argument("--sig", type=str, help="Цифровая подпись в base64 или путь к файлу .sig")
+    p_ecp.add_argument("--sig-file", type=str, help="Файл отсоединенной ЭЦП (.sig) для проверки")
     p_ecp.add_argument("--data", type=str, help="Данные для подписи/проверки")
-    p_ecp.add_argument("--in-file", type=str, help="Файл с данными")
+    p_ecp.add_argument("--in-file", type=str, help="Файл с данными для подписи/проверки")
     p_ecp.add_argument("--out-priv", type=str, help="Файл для сохранения закрытого ключа")
     p_ecp.add_argument("--out-pub", type=str, help="Файл для сохранения открытого ключа")
     p_ecp.add_argument("--out-cert", type=str, help="Файл для сохранения сертификата")
+    p_ecp.add_argument("--out-sig", type=str, help="Файл для сохранения отсоединенной ЭЦП (.sig)")
+    p_ecp.add_argument("--binary-sig", action="store_true", help="Сохранить .sig файл в бинарном формате (по умолчанию: base64 текст)")
+    p_ecp.add_argument("--raw-sig", action="store_true", help="Создать 'сырую' подпись R||S вместо стандартного CMS (PKCS#7)")
+    p_ecp.add_argument("--cert", type=str, help="Путь к сертификату X.509 (.crt/.pem) для встраивания в CMS")
+    p_ecp.add_argument("--bits", type=int, choices=[256, 512], default=512, help="Размер ключа ЭЦП ГОСТ Р 34.10-2012 (256 или 512 бит, по умолчанию 512)")
+    p_ecp.add_argument("--demo", action="store_true", help="Демонстрация и проверка эталона RFC 7091")
 
-    # Shortcut demo command
+    # Shortcut demo commands
+    p_demo_ecp = subparsers.add_parser("demo-ecp", help="Быстрая демонстрация ЭЦП ГОСТ Р 34.10-2012 (RFC 7091 / RFC 7836)")
+    p_demo_ecp.add_argument("--bits", type=int, choices=[256, 512], default=512, help="Размер ключа ЭЦП ГОСТ Р 34.10-2012")
+
     p_demo4 = subparsers.add_parser("demo-rsa-4k", help="Быстрая демонстрация работы RSA-4096")
     p_demo4.add_argument("--bits", type=int, default=4096, help="Размер ключа (2048, 4096, 8192, 32768, по умолчанию 4096)")
     p_demo4.add_argument("--threads", type=int, default=None, help="Количество параллельных потоков/ядер CPU")
@@ -632,6 +767,9 @@ def main():
     elif args.subcommand == "streebog":
         cmd_streebog(args)
     elif args.subcommand == "ecp":
+        cmd_ecp(args)
+    elif args.subcommand == "demo-ecp":
+        args.demo = True
         cmd_ecp(args)
     elif args.subcommand == "demo-rsa-4k":
         args.bits = getattr(args, "bits", 4096) or 4096
