@@ -14,7 +14,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from crypto.rsa32k import generate_rsa_keypair, export_private_key_pem, export_public_key_pem
+from crypto.rsa import generate_rsa_keypair, export_private_key_pem, export_public_key_pem
 
 def main():
     pool_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "rsa_pool")

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}{{ message.subject }} — CryptoMail{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto my-6 space-y-6">
+    <div class="flex items-center justify-between">
+        <a href="/" class="m3-btn-outlined text-xs py-1.5 px-3">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Назад</span>
+        </a>
+            <button type="button" onclick="triggerMessageDecryption()" class="m3-btn-outlined text-xs py-1.5 px-3 flex items-center space-x-1.5 hover:bg-[var(--md-color-surface-container-high)]">
+                <i class="fa-solid fa-unlock-keyhole text-[var(--md-color-primary)]"></i>
+                <span>Расшифровать</span>
+            </button>
+        <a href="/messages/{{ message.id }}/export/pdf" target="_blank"
+            class="m3-btn-filled text-xs py-1.5 px-3 flex items-center space-x-1.5 shadow-sm">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>PDF с ЭЦП</span>
+        </a>
+        <a href="/messages/{{ message.id }}/export/sig"
+            class="m3-btn-tonal text-xs py-1.5 px-2.5 flex items-center space-x-1" title="Скачать подпись (.sig)">
+            <i class="fa-solid fa-signature"></i>
+            <span>.sig</span>
+        </a>
+        <span class="text-xs opacity-60 ml-1">#{{ message.id }}</span>
+    </div>
+</div>
+
+<!-- Main Message Card -->
+<div class="m3-card p-6 md:p-8 space-y-6">
+    <!-- Header -->
+    <div class="pb-5 border-b border-[var(--md-color-outline-variant)]">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h1 class="text-2xl font-bold tracking-tight">{{ message.subject }}</h1>
+            <span
+                class="m3-badge {% if 'RSA' in message.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-xs">
+                {{ message.encryption_type }}
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs opacity-80 mt-3">
+            <div>
+                <span class="opacity-60">Отправитель:</span>
+                <span class="font-bold text-[var(--md-color-primary)] ml-1">{{ sender.username }}</span> ({{
+                sender.email }})
+            </div>
+            <div>
+                <span class="opacity-60">Получатель:</span>
+                <span class="font-bold text-[var(--md-color-primary)] ml-1">{{ recipient.username }}</span> ({{
+                recipient.email }})
+            </div>
+            <div>
+                <span class="opacity-60">Дата:</span>
+                <span class="ml-1">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ECP Signature Banner -->
+    {% if is_decrypted %}
+    <div id="ecp-signature-banner" class="p-4 rounded-2xl border flex items-center justify-between
+            {% if is_sig_valid %}m3-badge-success{% else %}m3-badge-error{% endif %}">
+        <div class="flex items-center space-x-3">
+            <i
+                class="fa-solid {% if is_sig_valid %}fa-certificate text-[var(--md-color-tertiary)]{% else %}fa-triangle-exclamation text-[var(--md-color-error)]{% endif %} text-xl"></i>
+            <div>
+                <div class="text-xs font-bold uppercase tracking-wider">
+                    {% if is_sig_valid %}ЭЦП подтверждена{% else %}ЭЦП не подтверждена{% endif %}
+                </div>
+                <div id="ecp-signature-status" class="text-xs opacity-90 mt-0.5">
+                    {{ sig_status }}
+                </div>
+            </div>
+        </div>
+        {% if message.ecp_signature %}
+        <span
+            class="hidden sm:inline-block mono text-[10px] bg-[var(--md-color-surface-container)] px-2.5 py-1 rounded-full border border-[var(--md-color-outline-variant)]">
+            Стрибог-512
+        </span>
+        {% endif %}
+    </div>
+    {% else %}
+    <div id="ecp-signature-banner"
+        class="p-4 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-spinner fa-spin text-[var(--md-color-primary)] text-xl"></i>
+            <div>
+                <div class="text-xs font-bold uppercase tracking-wider">Дешифрование...</div>
+                <div id="ecp-signature-status" class="text-xs opacity-75 mt-0.5">
+                    {{ sig_status }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Decrypted Content -->
+    <div>
+        <h3 class="text-xs font-semibold uppercase tracking-wider mb-2 opacity-70">Содержимое</h3>
+        <div id="decrypted-content-box"
+            class="p-5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] text-sm leading-relaxed">
+            {{ decrypted_content }}
+        </div>
+    </div>
+
+    <!-- Raw Encrypted Ciphertext / Bundle Preview -->
+    <div class="pt-4 border-t border-[var(--md-color-outline-variant)]">
+        <details class="group">
+            <summary
+                class="text-xs opacity-75 hover:opacity-100 cursor-pointer flex items-center space-x-2 select-none">
+                <i class="fa-solid fa-chevron-right text-[10px] group-open:rotate-90 transition"></i>
+                <span>Зашифрованные данные</span>
+            </summary>
+            <div class="mt-3 space-y-3">
+                <div>
+                    <span class="text-[11px] opacity-60 block mb-1">Шифротекст:</span>
+                    <div
+                        class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] text-[var(--md-color-secondary)] break-all select-all max-h-32 overflow-y-auto">
+                        {{ message.ciphertext }}
+                    </div>
+                </div>
+                {% if message.ecp_signature %}
+                <div>
+                    <span class="text-[11px] opacity-60 block mb-1">Подпись (ЭЦП):</span>
+                    <div
+                        class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] text-[var(--md-color-tertiary)] break-all select-all">
+                        {{ message.ecp_signature }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+</div>
+</div>
+
+<script>
+    function updateDecryptionUI(result) {
+        if (!result) return;
+        if (result.decrypted_content) {
+            const contentBox = document.getElementById('decrypted-content-box');
+            if (contentBox) contentBox.textContent = result.decrypted_content;
+        }
+        const banner = document.getElementById('ecp-signature-banner');
+        if (banner) {
+            const isValid = !!result.is_sig_valid;
+            banner.className = 'p-4 rounded-2xl border flex items-center justify-between ' + (isValid ? 'm3-badge-success' : 'm3-badge-error');
+            const iconClass = isValid ? 'fa-certificate text-[var(--md-color-tertiary)]' : 'fa-triangle-exclamation text-[var(--md-color-error)]';
+            const statusTitle = isValid ? 'ЭЦП подтверждена' : 'ЭЦП не подтверждена';
+            const statusDetail = result.sig_status || '';
+            banner.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid ${iconClass} text-xl"></i>
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-wider">${statusTitle}</div>
+                        <div id="ecp-signature-status" class="text-xs opacity-90 mt-0.5">${statusDetail}</div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function triggerMessageDecryption() {
+        if (typeof CryptoTaskTracker !== 'undefined' && CryptoTaskTracker.startDecryption) {
+            CryptoTaskTracker.startDecryption('{{ message.id }}', function (t) {
+                if (t && t.result) {
+                    updateDecryptionUI(t.result);
+                }
+            });
+        }
+    }
+</script>
+
+{% if not is_decrypted %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        triggerMessageDecryption();
+    });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Административная панель — CryptoMail{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Admin Header & Global Export -->
+    <div class="m3-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl m3-badge-error flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight">Панель администратора</h1>
+            </div>
+        </div>
+
+        <!-- Global Export Buttons -->
+        <div class="flex items-center space-x-2 p-1.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
+            <a href="/admin/export/json" class="m3-btn-tonal text-xs py-1.5 px-3">
+                <i class="fa-solid fa-file-code"></i>
+                <span>JSON</span>
+            </a>
+            <a href="/admin/export/pdf" class="m3-btn-tonal text-xs py-1.5 px-3">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span>PDF</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="m3-card p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)]">
+            <h2 class="text-base font-bold flex items-center space-x-2">
+                <i class="fa-solid fa-users text-[var(--md-color-primary)]"></i>
+                <span>Пользователи ({{ users|length }})</span>
+            </h2>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="m3-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Пользователь</th>
+                        <th>Email</th>
+                        <th>Роль</th>
+                        <th>ЭЦП</th>
+                        <th>Экспорт</th>
+                        <th class="text-right">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="mono opacity-70">#{{ u.id }}</td>
+                        <td>
+                            <div class="font-bold text-[var(--md-color-primary)]">{{ u.username }}</div>
+                            <span class="text-[10px] opacity-60">{{ u.created_at.strftime('%d.%m.%Y') }}</span>
+                        </td>
+                        <td>{{ u.email }}</td>
+                        <td>
+                            <form method="POST" action="/admin/users/{{ u.id }}/role" class="inline-flex items-center">
+                                <select name="role" onchange="this.form.submit()" class="m3-select py-1 px-2.5 text-xs w-auto">
+                                    <option value="user" {% if u.role=='user' %}selected{% endif %}>Пользователь</option>
+                                    <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Админ</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            {% if u.ecp_certificate %}
+                            <span class="m3-badge m3-badge-success text-[10px]">
+                                Выпущена
+                            </span>
+                            {% else %}
+                            <span class="m3-badge m3-badge-neutral text-[10px]">
+                                Нет
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="flex items-center space-x-1.5">
+                                <a href="/admin/users/{{ u.id }}/export/json"
+                                    class="m3-btn-outlined text-[11px] py-1 px-2.5"
+                                    title="Выгрузить сообщения пользователя в JSON">
+                                    <i class="fa-solid fa-file-code"></i>
+                                    <span>JSON</span>
+                                </a>
+                                <a href="/admin/users/{{ u.id }}/export/pdf"
+                                    class="m3-btn-outlined text-[11px] py-1 px-2.5"
+                                    title="Выгрузить сообщения пользователя в PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                    <span>PDF</span>
+                                </a>
+                            </div>
+                        </td>
+                        <td class="text-right">
+                            <div class="inline-flex items-center space-x-2">
+                                <!-- Reset Password Modal Button -->
+                                <button type="button" onclick="openResetModal('{{ u.id }}', '{{ u.username }}')"
+                                    class="m3-btn-tonal text-xs py-1 px-2.5"
+                                    title="Сбросить пароль пользователя">
+                                    <i class="fa-solid fa-key"></i>
+                                    <span>Сброс</span>
+                                </button>
+
+                                {% if u.id != current_admin_id %}
+                                <form method="POST" action="/admin/users/{{ u.id }}/delete" class="inline"
+                                    onsubmit="return confirm('Удалить пользователя {{ u.username }} и все связанные данные?')">
+                                    <button type="submit"
+                                        class="m3-btn-danger text-xs py-1 px-2.5"
+                                        title="Удалить пользователя">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Admin Password Reset -->
+<div id="resetModal"
+    class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="m3-card max-w-sm w-full p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)]">
+            <h3 class="text-sm font-bold flex items-center space-x-2">
+                <i class="fa-solid fa-key text-[var(--md-color-warning)]"></i>
+                <span>Сброс пароля: <span id="resetModalUsername" class="text-[var(--md-color-primary)]"></span></span>
+            </h3>
+            <button onclick="closeResetModal()" class="opacity-60 hover:opacity-100 text-lg">&times;</button>
+        </div>
+        <form id="resetForm" method="POST" action="" class="space-y-3 text-xs">
+            <div>
+                <label class="block font-semibold mb-1 opacity-80">Новый пароль</label>
+                <input type="text" name="new_password" id="modalNewPassword" required value="NewSecurePass123!"
+                    class="m3-input mono">
+                <p class="text-[10px] opacity-60 mt-1">Минимум 8 символов, заглавные/строчные буквы, цифра, спецсимвол</p>
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button type="button" onclick="closeResetModal()"
+                    class="flex-1 py-2 m3-btn-outlined text-xs">
+                    Отмена
+                </button>
+                <button type="submit"
+                    class="flex-1 py-2 m3-btn-filled text-xs">
+                    Применить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openResetModal(userId, username) {
+        document.getElementById('resetModalUsername').innerText = username;
+        document.getElementById('resetForm').action = '/admin/users/' + userId + '/reset-password';
+        document.getElementById('resetModal').classList.remove('hidden');
+    }
+    function closeResetModal() {
+        document.getElementById('resetModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

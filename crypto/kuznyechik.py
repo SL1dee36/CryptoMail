@@ -2,6 +2,7 @@
 # Author: Nazaryan Artem @Sl1dee36
 # Date: 05/2026.
 
+import hmac
 import os
 from typing import List, Tuple
 
@@ -173,12 +174,13 @@ class Kuznyechik:
     @staticmethod
     def unpad_pkcs7(data: bytes, block_size: int = 16) -> bytes:
         if not data or len(data) % block_size != 0:
-            raise ValueError("Invalid padded data length.")
+            raise ValueError("Invalid PKCS#7 padding.")
         pad_len = data[-1]
         if pad_len < 1 or pad_len > block_size:
             raise ValueError("Invalid PKCS#7 padding.")
-        if data[-pad_len:] != bytes([pad_len] * pad_len):
-            raise ValueError("Corrupt PKCS#7 padding.")
+        expected_pad = bytes([pad_len] * pad_len)
+        if not hmac.compare_digest(data[-pad_len:], expected_pad):
+            raise ValueError("Invalid PKCS#7 padding.")
         return data[:-pad_len]
 
     def encrypt_cbc(self, plaintext: bytes, iv: bytes = None) -> bytes:
@@ -219,36 +221,42 @@ class Kuznyechik:
         return self.unpad_pkcs7(bytes(plaintext), 16)
 
     def encrypt_ctr(self, data: bytes, iv: bytes = None) -> bytes:
-        """Encrypts/Decrypts data in CTR mode. Returns IV + ciphertext."""
+        """Encrypts/Decrypts data in CTR mode (GOST R 34.13-2015). Returns IV + ciphertext."""
         if iv is None:
             iv = os.urandom(16)
         elif len(iv) != 16:
             raise ValueError("IV must be 16 bytes")
 
         out = bytearray()
-        counter_int = int.from_bytes(iv, byteorder="big")
+        iv_hi = iv[:8]
+        ctr_val = int.from_bytes(iv[8:], byteorder="big")
         
+        block_idx = 0
         for i in range(0, len(data), 16):
             chunk = data[i:i + 16]
-            ctr_bytes = counter_int.to_bytes(16, byteorder="big")
+            curr_ctr = (ctr_val + block_idx) & 0xFFFFFFFFFFFFFFFF
+            ctr_bytes = iv_hi + curr_ctr.to_bytes(8, byteorder="big")
             keystream = self.encrypt_block(ctr_bytes)
             out.extend(_xor(chunk, keystream[:len(chunk)]))
-            counter_int = (counter_int + 1) & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            block_idx += 1
             
         return iv + bytes(out)
 
     def decrypt_ctr(self, data: bytes) -> bytes:
-        """Decrypts CTR data (IV + ciphertext)."""
+        """Decrypts CTR data (IV + ciphertext) according to GOST R 34.13-2015."""
         if len(data) < 16:
             raise ValueError("CTR data too short (must include 16-byte IV)")
         iv = data[:16]
         ct = data[16:]
-        counter_int = int.from_bytes(iv, byteorder="big")
+        iv_hi = iv[:8]
+        ctr_val = int.from_bytes(iv[8:], byteorder="big")
         out = bytearray()
+        block_idx = 0
         for i in range(0, len(ct), 16):
             chunk = ct[i:i + 16]
-            ctr_bytes = counter_int.to_bytes(16, byteorder="big")
+            curr_ctr = (ctr_val + block_idx) & 0xFFFFFFFFFFFFFFFF
+            ctr_bytes = iv_hi + curr_ctr.to_bytes(8, byteorder="big")
             keystream = self.encrypt_block(ctr_bytes)
             out.extend(_xor(chunk, keystream[:len(chunk)]))
-            counter_int = (counter_int + 1) & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            block_idx += 1
         return bytes(out)

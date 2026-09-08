@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CryptoMail — Защищенная система сообщений{% endblock %}</title>
+    <!-- Material 3 Design System & Theme Engine -->
+    <link rel="stylesheet" href="/templates/style/material3.css">
+    <script src="/templates/style/theme.js"></script>
+    <script src="/templates/style/crypto_tracker.js"></script>
+    <!-- Tailwind CSS (utility base) & FontAwesome Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body class="min-h-screen flex flex-col font-sans antialiased m3-surface">
+    <!-- Material 3 Expressive Top App Bar -->
+    <nav class="m3-appbar sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <a href="/"
+                        class="flex items-center space-x-2.5 text-lg font-bold tracking-tight no-underline hover:opacity-85 transition">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center m3-badge-primary">
+                            <i class="fa-solid fa-shield-halved text-base"></i>
+                        </div>
+                        <span class="text-base font-bold">CryptoMail</span>
+                    </a>
+                </div>
+
+                <div class="flex items-center space-x-2.5">
+                    <!-- Light / Dark Theme Switcher Button -->
+                    <button type="button" onclick="toggleTheme()" class="m3-btn-outlined text-xs py-1.5 px-3"
+                        title="Переключить тему (Светлая / Тёмная)">
+                        <i id="theme-icon" class="fa-solid fa-moon"></i>
+                        <span id="theme-text" class="hidden sm:inline text-xs font-semibold">Тема</span>
+                    </button>
+
+                    <!-- MailTrap Quick Access Button -->
+                    <a href="/mailtrap" class="m3-btn-tonal text-xs py-1.5 px-3">
+                        <i class="fa-solid fa-inbox"></i>
+                        <span>Почта 3FA</span>
+                    </a>
+
+                    {% if user %}
+                    <div
+                        class="hidden sm:flex items-center space-x-2 text-xs py-1.5 px-3 rounded-full m3-surface-container-low border border-slate-700/40">
+                        <i class="fa-solid fa-user-shield opacity-70"></i>
+                        <span class="font-semibold">{{ user.username }}</span>
+                        <span class="m3-badge
+                                {% if user.role == 'admin' %}m3-badge-error
+                                {% elif user.role == 'user' %}m3-badge-success
+                                {% else %}m3-badge-warning{% endif %}">
+                            {{ user.role_title_ru }}
+                        </span>
+                    </div>
+
+                    {% if user.role == 'admin' %}
+                    <a href="/admin" class="m3-btn-danger text-xs py-1.5 px-3">
+                        <i class="fa-solid fa-crown"></i>
+                        <span>Админка</span>
+                    </a>
+                    {% endif %}
+
+                    <a href="/ecp" class="m3-btn-outlined text-xs py-1.5 px-3">
+                        <i class="fa-solid fa-signature"></i>
+                        <span class="hidden md:inline">ЭЦП</span>
+                    </a>
+
+                    <a href="/logout" class="m3-btn-outlined text-xs py-1.5 px-3 hover:opacity-80" title="Выйти">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="hidden sm:inline">Выход</span>
+                    </a>
+                    {% else %}
+                    <a href="/login" class="m3-btn-outlined text-xs py-1.5 px-3.5">
+                        Вход
+                    </a>
+                    <a href="/register" class="m3-btn-filled text-xs py-1.5 px-3.5">
+                        Регистрация
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+        {% if alert_message %}
+        <div class="mb-6 p-4 rounded-2xl border flex items-center justify-between
+                {% if alert_type == 'error' %}m3-badge-error
+                {% elif alert_type == 'success' %}m3-badge-success
+                {% else %}m3-badge-primary{% endif %}">
+            <div class="flex items-center space-x-3 text-xs font-semibold">
+                <i
+                    class="fa-solid {% if alert_type == 'error' %}fa-circle-exclamation{% elif alert_type == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} text-base"></i>
+                <span>{{ alert_message }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="m3-appbar border-t py-3 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs opacity-60">
+            CryptoMail
+        </div>
+    </footer>
+
+    <!-- Top Floating Toast Notification (Appears upon completion) -->
+    <div id="crypto-top-toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none transition-all duration-300 transform opacity-0 -translate-y-4 font-sans" style="display: none;">
+        <div class="m3-card px-5 py-3 rounded-full shadow-2xl border border-emerald-500/50 bg-emerald-950/95 dark:bg-emerald-900/95 text-white flex items-center space-x-3 pointer-events-auto backdrop-blur-md">
+            <div class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold shadow-sm">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div class="text-xs pr-1">
+                <div id="crypto-toast-title" class="font-bold text-emerald-200">Операция успешно завершена!</div>
+                <div id="crypto-toast-subtitle" class="text-[11px] text-emerald-100/80">Сообщение готово</div>
+            </div>
+            <button type="button" onclick="CryptoTaskTracker.hideTopToast()" class="text-white/70 hover:text-white text-xs p-1 transition" title="Закрыть уведомление">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="crypto-dock" class="fixed bottom-5 right-5 z-[9999] transition-all duration-300 ease-in-out font-sans" style="display: none; opacity: 0; transform: translateY(16px);">
+        <div class="m3-card shadow-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] rounded-2xl overflow-hidden w-[350px] sm:w-[380px] max-w-[calc(100vw-2rem)]">
+            
+            <!-- Dock Header (Click to expand / collapse) -->
+            <div id="crypto-dock-header" class="px-4 py-3 bg-[var(--md-color-surface-container)] border-b border-[var(--md-color-outline-variant)] flex items-center justify-between cursor-pointer select-none hover:bg-[var(--md-color-surface-container-high)] transition" title="Нажмите, чтобы свернуть / развернуть подробности">
+                <div class="flex items-center space-x-2.5 overflow-hidden">
+                    <div id="crypto-dock-icon" class="w-7 h-7 rounded-lg flex items-center justify-center m3-badge-primary flex-shrink-0">
+                        <i class="fa-solid fa-spinner fa-spin text-xs"></i>
+                    </div>
+                    <div class="truncate">
+                        <div id="crypto-dock-title" class="text-xs font-bold truncate">Шифрование сообщения</div>
+                        <div id="crypto-dock-subtitle" class="text-[11px] opacity-70 truncate">Выполняется криптографическая операция...</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-1.5 flex-shrink-0 ml-2">
+                    <button type="button" id="crypto-dock-toggle-btn" class="p-1.5 text-xs opacity-70 hover:opacity-100 hover:bg-[var(--md-color-surface-container-highest)] rounded-lg transition" title="Свернуть / Развернуть">
+                        <i id="crypto-dock-chevron" class="fa-solid fa-chevron-down text-xs"></i>
+                    </button>
+                    <button type="button" id="crypto-dock-close-btn" class="p-1.5 text-xs opacity-70 hover:opacity-100 hover:text-red-500 hover:bg-[var(--md-color-surface-container-highest)] rounded-lg transition" title="Закрыть панель">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dock Body (Detailed live metrics) -->
+            <div id="crypto-dock-body" class="p-4 space-y-3.5">
+                <!-- Progress Bar & Stage Status -->
+                <div>
+                    <div class="flex justify-between items-center text-[11px] font-semibold mb-1 opacity-80">
+                        <span id="crypto-stage-label" class="truncate pr-2">Инициализация...</span>
+                        <span id="crypto-percent-label" class="mono font-bold text-[var(--md-color-primary)]">0%</span>
+                    </div>
+                    <div class="w-full bg-[var(--md-color-surface-container-highest)] rounded-full h-2 overflow-hidden">
+                        <div id="crypto-progress-bar" class="h-2 rounded-full bg-[var(--md-color-primary)] transition-all duration-200" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Metrics Grid: Iterations, Candidates, Stopwatch, Algorithm -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <!-- Iterations -->
+                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                        <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
+                            <i class="fa-solid fa-arrows-spin text-[9px] text-[var(--md-color-primary)]"></i>
+                            <span>Итераций:</span>
+                        </div>
+                        <div class="mt-1 font-bold mono text-sm text-[var(--md-color-primary)]">
+                            <span id="crypto-stat-iterations">0</span>
+                            <span class="text-[10px] opacity-50 font-normal">/ <span id="crypto-stat-max-iterations">256</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Candidates Tested -->
+                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                        <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
+                            <i class="fa-solid fa-filter text-[9px] text-[var(--md-color-tertiary)]"></i>
+                            <span>Кандидатов:</span>
+                        </div>
+                        <div class="mt-1 font-bold mono text-sm text-[var(--md-color-tertiary)]">
+                            <span id="crypto-stat-candidates">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Live Stopwatch Timer -->
+                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                        <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
+                            <i class="fa-solid fa-stopwatch text-[9px] text-[var(--md-color-secondary)]"></i>
+                            <span>Время:</span>
+                        </div>
+                        <div class="mt-1 font-bold mono text-sm">
+                            <span id="crypto-stat-time">00:00.0</span>
+                        </div>
+                    </div>
+
+                    <!-- Algorithm -->
+                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                        <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
+                            <i class="fa-solid fa-shield-halved text-[9px] text-[var(--md-color-warning)]"></i>
+                            <span>Алгоритм:</span>
+                        </div>
+                        <div class="mt-1 font-semibold text-[11px] truncate text-[var(--md-color-on-surface)]" id="crypto-stat-algorithm">
+                            RSA-32K
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Completed Action Buttons (Go to Message & Close Panel) -->
+                <div id="crypto-dock-actions" class="pt-2 border-t border-[var(--md-color-outline-variant)] flex items-center space-x-2" style="display: none;">
+                    <a id="crypto-btn-goto-message" href="#" class="m3-btn-filled text-xs py-2 px-3 flex-1 flex items-center justify-center space-x-1.5 no-underline">
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                        <span>Перейти к сообщению</span>
+                    </a>
+                    <button type="button" id="crypto-btn-close-dock" class="m3-btn-outlined text-xs py-2 px-3 flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                        <span>Закрыть</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

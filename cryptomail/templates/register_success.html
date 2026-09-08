@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация завершена — CryptoMail{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto my-8">
+    <div class="m3-card p-8">
+        <div class="text-center mb-6">
+            <div class="w-14 h-14 rounded-2xl m3-badge-success mx-auto flex items-center justify-center mb-3">
+                <i class="fa-solid fa-shield-check text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">Аккаунт успешно создан!</h1>
+            <p class="text-xs opacity-75 mt-1">Добро пожаловать, <span class="font-bold text-[var(--md-color-primary)]">{{ new_user.username }}</span>. Сохраните данные безопасности.</p>
+        </div>
+
+        <!-- Recovery Codes -->
+        <div class="mb-6 p-5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
+            <div class="flex items-center space-x-2 text-[var(--md-color-warning)] text-sm font-semibold mb-2">
+                <i class="fa-solid fa-key"></i>
+                <span>Резервные коды:</span>
+            </div>
+            <p class="text-xs opacity-75 mb-3">
+                Сохраните эти коды для восстановления доступа.
+            </p>
+            <div class="grid grid-cols-2 gap-2.5 bg-[var(--md-color-surface-container-highest)] p-4 rounded-xl border border-[var(--md-color-outline-variant)]">
+                {% for code in recovery_codes %}
+                    <div class="mono text-xs text-center py-2 px-2 bg-[var(--md-color-surface-container)] rounded-lg border border-[var(--md-color-outline-variant)] font-semibold tracking-wider select-all text-[var(--md-color-warning)]">
+                        {{ code }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- TOTP 3FA setup -->
+        <div class="mb-6 p-5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
+            <div class="flex items-center space-x-2 text-[var(--md-color-primary)] text-sm font-semibold mb-2">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+                <span>Секрет TOTP:</span>
+            </div>
+            <p class="text-xs opacity-75 mb-2">
+                Ключ для приложения-аутентификатора:
+            </p>
+            <div class="bg-[var(--md-color-surface-container-highest)] px-3 py-2 rounded-xl border border-[var(--md-color-outline-variant)] text-center">
+                <span class="mono text-xs font-bold select-all tracking-wider text-[var(--md-color-primary)]">{{ new_user.totp_secret }}</span>
+            </div>
+        </div>
+
+        <div>
+            <a href="/login" class="w-full py-3 m3-btn-filled text-sm">
+                <span>Войти</span>
+                <i class="fa-solid fa-arrow-right text-xs"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
