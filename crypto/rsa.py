@@ -24,9 +24,7 @@ from crypto.streebog import hmac_streebog512
 logger = logging.getLogger("crypto.rsa")
 
 
-# ---------------------------------------------------------------------------
 # Primality testing and prime generation (Pure Python, Miller-Rabin)
-# ---------------------------------------------------------------------------
 
 def _sieve_primes(limit: int = 2000) -> List[int]:
     """Generates a list of small primes up to limit using Sieve of Eratosthenes."""
@@ -88,10 +86,7 @@ def find_prime(prime_bits: int, public_exponent: int = 65537) -> int:
         if is_probable_prime(cand, rounds=6):
             return cand
 
-
-# ---------------------------------------------------------------------------
 # RSA-OAEP Padding (RFC 8017 / PKCS#1 v2.2)
-# ---------------------------------------------------------------------------
 
 def mgf1(seed: bytes, length: int, hash_func=hashlib.sha256) -> bytes:
     """
@@ -166,10 +161,7 @@ def oaep_unpad(em: bytes, k: int, label: bytes = b"", hash_func=hashlib.sha256) 
 
     return bytes(db[sep_idx + 1 :])
 
-
-# ---------------------------------------------------------------------------
 # RSA Key Classes
-# ---------------------------------------------------------------------------
 
 class RSAPublicKey:
     """
@@ -708,9 +700,7 @@ def get_or_create_rsa_keypair(key_size: int = 4096) -> Tuple[RSAPrivateKey, RSAP
     return generate_rsa_keypair(key_size=key_size)
 
 
-# ---------------------------------------------------------------------------
 # Hybrid Envelope Encryption & Decryption
-# ---------------------------------------------------------------------------
 
 def rsa_encrypt_hybrid(public_key: RSAPublicKey, plaintext: Union[str, bytes]) -> str:
     """
@@ -776,10 +766,7 @@ def rsa_decrypt_hybrid(private_key: RSAPrivateKey, encrypted_bundle_str: str) ->
     logger.info("RSA-Hybrid: пакет успешно расшифрован за %.4f с", time.time() - t0)
     return decrypted_bytes
 
-
-# ---------------------------------------------------------------------------
 # Compatibility / Namespace classes
-# ---------------------------------------------------------------------------
 
 class _MGF1:
     def __init__(self, algorithm=None):
@@ -796,3 +783,62 @@ class _PaddingNamespace:
     MGF1 = _MGF1
 
 padding = _PaddingNamespace()
+
+
+# ---------------------------------------------------------------------------
+# High-level Helper Functions for Console / CLI / API
+# ---------------------------------------------------------------------------
+
+def encrypt_string_rsa(
+    plaintext: Union[str, bytes],
+    key: Union[str, bytes, RSAPublicKey],
+) -> str:
+    """
+    Шифрует строку или байты открытым ключом RSA (гибридный конверт: RSA-OAEP + ГОСТ «Кузнечик» CTR + ГОСТ «Стрибог»-512 HMAC).
+    Принимает:
+    - Путь к PEM-файлу открытого ключа
+    - PEM-строку или байты
+    - Объект RSAPublicKey
+    Возвращает строку с JSON-бандлом.
+    """
+    if isinstance(key, RSAPublicKey):
+        pub = key
+    elif isinstance(key, (str, bytes)):
+        if isinstance(key, str) and os.path.isfile(key):
+            with open(key, "r", encoding="utf-8") as f:
+                pem_data = f.read()
+        else:
+            pem_data = key
+        pub = load_public_key_pem(pem_data)
+    else:
+        raise TypeError(f"Неподдерживаемый тип ключа RSA: {type(key)}")
+
+    return rsa_encrypt_hybrid(pub, plaintext)
+
+
+def decrypt_string_rsa(
+    bundle_str: str,
+    key: Union[str, bytes, RSAPrivateKey],
+) -> str:
+    """
+    Расшифровывает JSON-бандл гибридного шифрования RSA закрытым ключом с CRT-ускорением и проверкой целостности HMAC.
+    Принимает:
+    - Путь к PEM-файлу закрытого ключа
+    - PEM-строку или байты
+    - Объект RSAPrivateKey
+    Возвращает расшифрованную UTF-8 строку.
+    """
+    if isinstance(key, RSAPrivateKey):
+        priv = key
+    elif isinstance(key, (str, bytes)):
+        if isinstance(key, str) and os.path.isfile(key):
+            with open(key, "r", encoding="utf-8") as f:
+                pem_data = f.read()
+        else:
+            pem_data = key
+        priv = load_private_key_pem(pem_data)
+    else:
+        raise TypeError(f"Неподдерживаемый тип ключа RSA: {type(key)}")
+
+    decrypted_bytes = rsa_decrypt_hybrid(priv, bundle_str)
+    return decrypted_bytes.decode("utf-8", errors="replace")

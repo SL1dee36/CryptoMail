@@ -36,7 +36,13 @@ from crypto.ecp import (
     verify_file_signature,
     verify_message_signature,
 )
-from crypto.kuznyechik import Kuznyechik
+from crypto.kuznyechik import (
+    Kuznyechik,
+    load_kuznyechik_key,
+    generate_kuznyechik_key,
+    encrypt_string_kuznyechik,
+    decrypt_string_kuznyechik,
+)
 from crypto.rsa_parallel import find_prime_parallel, generate_rsa_keypair_parallel
 from crypto.rsa import (
     build_rsa_keypair_from_primes,
@@ -47,6 +53,8 @@ from crypto.rsa import (
     load_public_key_pem,
     rsa_decrypt_hybrid,
     rsa_encrypt_hybrid,
+    encrypt_string_rsa,
+    decrypt_string_rsa,
 )
 from crypto.streebog import hmac_streebog512, streebog256, streebog512
 
@@ -310,7 +318,7 @@ def cmd_rsa(args):
             t0 = time.time()
             priv, pub = build_rsa_keypair_from_primes(p, q)
             el = time.time() - t0
-            print(f"[+] Ключевая пара RSA-{priv.key_size} мгновенно собрана из параметров p и q за {el:.4f} сек!")
+            print(f"[+] Ключевая пара RSA-{priv.key_size} собрана из параметров p и q за {el:.4f} сек!")
         else:
             if args.bits is None:
                 print("[*] Размер ключа не указан, используется значение по умолчанию: 4096 бит (для 32K укажите --bits 32768)")
@@ -341,17 +349,22 @@ def cmd_rsa(args):
         if not args.pub:
             print("[-] Ошибка: укажите файл открытого ключа через --pub")
             sys.exit(1)
-        with open(args.pub, "r", encoding="utf-8") as f:
-            pub_pem = f.read()
-        pub = load_public_key_pem(pub_pem)
         data = args.data
         if not data and args.in_file:
+            if not os.path.isfile(args.in_file):
+                print(f"[-] Ошибка: входной файл '{args.in_file}' не найден")
+                sys.exit(1)
             with open(args.in_file, "r", encoding="utf-8") as f:
                 data = f.read()
         if not data:
             print("[-] Ошибка: укажите данные через --data или --in-file")
             sys.exit(1)
-        encrypted_bundle = rsa_encrypt_hybrid(pub, data)
+        try:
+            encrypted_bundle = encrypt_string_rsa(data, args.pub)
+        except Exception as e:
+            print(f"[-] Ошибка шифрования RSA: {e}")
+            sys.exit(1)
+
         if args.out_file:
             with open(args.out_file, "w", encoding="utf-8") as f:
                 f.write(encrypted_bundle)
@@ -365,18 +378,22 @@ def cmd_rsa(args):
         if not args.priv:
             print("[-] Ошибка: укажите файл закрытого ключа через --priv")
             sys.exit(1)
-        with open(args.priv, "r", encoding="utf-8") as f:
-            priv_pem = f.read()
-        priv = load_private_key_pem(priv_pem)
         bundle_str = args.data
         if not bundle_str and args.in_file:
+            if not os.path.isfile(args.in_file):
+                print(f"[-] Ошибка: входной файл '{args.in_file}' не найден")
+                sys.exit(1)
             with open(args.in_file, "r", encoding="utf-8") as f:
                 bundle_str = f.read()
         if not bundle_str:
             print("[-] Ошибка: укажите зашифрованный бандл через --data или --in-file")
             sys.exit(1)
-        decrypted = rsa_decrypt_hybrid(priv, bundle_str)
-        text = decrypted.decode("utf-8", errors="replace")
+        try:
+            text = decrypt_string_rsa(bundle_str, args.priv)
+        except Exception as e:
+            print(f"[-] Ошибка расшифрования RSA: {e}")
+            sys.exit(1)
+
         if args.out_file:
             with open(args.out_file, "w", encoding="utf-8") as f:
                 f.write(text)
@@ -403,47 +420,77 @@ def cmd_kuznyechik(args):
         print(f"[+] Расшифрование: {dt.hex()} (совпадает: {dt == pt})")
         return
 
-    if not args.key:
-        print("[-] Ошибка: укажите 32-байтный hex-ключ через --key (64 символа)")
+    if getattr(args, "generate_key", False):
+        out_key_path = getattr(args, "out_key", None) or getattr(args, "out_file", None)
+        new_key = generate_kuznyechik_key(out_file=out_key_path)
+        if out_key_path:
+            print(f"[+] 256-битный ключ «Кузнечик» успешно сгенерирован и сохранен в: {out_key_path}")
+            print(f"    Hex: {new_key}")
+        else:
+            print("[+] Сгенерированный 256-битный ключ «Кузнечик» (64 hex-символа):")
+            print(new_key)
+        return
+
+    key_input = getattr(args, "key_file", None) or args.key
+    if not key_input:
+        print("[-] Ошибка: укажите ключ или путь к файлу ключа через --key или --key-file")
         sys.exit(1)
+
     try:
-        key_bytes = bytes.fromhex(args.key.strip())
-        if len(key_bytes) != 32:
-            raise ValueError("Длина ключа должна быть ровно 32 байта")
+        key_bytes = load_kuznyechik_key(key_input)
     except Exception as e:
         print(f"[-] Неверный ключ: {e}")
         sys.exit(1)
 
-    cipher = Kuznyechik(key_bytes)
+    mode = args.mode or "cbc"
 
     if args.encrypt:
-        data = (args.data or "").encode("utf-8")
+        data = args.data
         if not data and args.in_file:
-            with open(args.in_file, "rb") as f:
+            if not os.path.isfile(args.in_file):
+                print(f"[-] Ошибка: входной файл '{args.in_file}' не найден")
+                sys.exit(1)
+            with open(args.in_file, "r", encoding="utf-8") as f:
                 data = f.read()
-        mode = args.mode or "cbc"
-        if mode == "cbc":
-            res = cipher.encrypt_cbc(data)
+        if not data:
+            print("[-] Ошибка: укажите данные для шифрования через --data или --in-file")
+            sys.exit(1)
+
+        res_b64 = encrypt_string_kuznyechik(data, key_bytes, mode=mode)
+        if getattr(args, "out_file", None):
+            with open(args.out_file, "w", encoding="utf-8") as f:
+                f.write(res_b64)
+            print(f"[+] Зашифрованные данные ({mode.upper()}, base64) сохранены в {args.out_file}")
         else:
-            res = cipher.encrypt_ctr(data)
-        res_b64 = base64.b64encode(res).decode("ascii")
-        print(f"[+] Зашифровано ({mode.upper()}, base64):")
-        print(res_b64)
+            print(f"[+] Зашифровано ({mode.upper()}, base64):")
+            print(res_b64)
         return
 
     if args.decrypt:
-        data_b64 = args.data or ""
+        data_b64 = args.data
         if not data_b64 and args.in_file:
+            if not os.path.isfile(args.in_file):
+                print(f"[-] Ошибка: входной файл '{args.in_file}' не найден")
+                sys.exit(1)
             with open(args.in_file, "r", encoding="utf-8") as f:
                 data_b64 = f.read().strip()
-        raw = base64.b64decode(data_b64)
-        mode = args.mode or "cbc"
-        if mode == "cbc":
-            res = cipher.decrypt_cbc(raw)
+        if not data_b64:
+            print("[-] Ошибка: укажите зашифрованные данные (Base64) через --data или --in-file")
+            sys.exit(1)
+
+        try:
+            res_text = decrypt_string_kuznyechik(data_b64, key_bytes, mode=mode)
+        except Exception as e:
+            print(f"[-] Ошибка расшифрования: {e}")
+            sys.exit(1)
+
+        if getattr(args, "out_file", None):
+            with open(args.out_file, "w", encoding="utf-8") as f:
+                f.write(res_text)
+            print(f"[+] Расшифрованный текст сохранен в {args.out_file}")
         else:
-            res = cipher.decrypt_ctr(raw)
-        print(f"[+] Расшифровано ({mode.upper()}):")
-        print(res.decode("utf-8", errors="replace"))
+            print(f"[+] Расшифровано ({mode.upper()}):")
+            print(res_text)
         return
 
 
@@ -695,15 +742,20 @@ def main():
     p_pregen_alias.add_argument("--threads", type=int, default=None, help="Количество параллельных потоков/ядер CPU")
     p_pregen_alias.add_argument("--out-dir", type=str, default="data/rsa_pregen", help="Директория для сохранения p и q (по умолчанию: data/rsa_pregen)")
 
-    # Kuznyechik Subparser
-    p_kuz = subparsers.add_parser("kuznyechik", help="Модуль ГОСТ Р 34.12-2015 «Кузнечик»")
-    p_kuz.add_argument("--encrypt", action="store_true", help="Зашифровать")
-    p_kuz.add_argument("--decrypt", action="store_true", help="Расшифровать")
-    p_kuz.add_argument("--key", type=str, help="256-битный ключ (64 hex-символа)")
-    p_kuz.add_argument("--data", type=str, help="Строка данных")
-    p_kuz.add_argument("--in-file", type=str, help="Входной файл")
-    p_kuz.add_argument("--mode", choices=["cbc", "ctr"], default="cbc", help="Режим шифрования")
-    p_kuz.add_argument("--demo", action="store_true", help="Тест эталона RFC 7801")
+    # Kuznyechik Subparser & Alias
+    for sub_name in ["kuznyechik", "kuznechik"]:
+        p_kuz = subparsers.add_parser(sub_name, help="Модуль ГОСТ Р 34.12-2015 «Кузнечик»")
+        p_kuz.add_argument("--encrypt", action="store_true", help="Зашифровать данные")
+        p_kuz.add_argument("--decrypt", action="store_true", help="Расшифровать данные")
+        p_kuz.add_argument("--generate-key", action="store_true", help="Сгенерировать случайный 256-битный ключ")
+        p_kuz.add_argument("--out-key", type=str, help="Файл для сохранения сгенерированного ключа")
+        p_kuz.add_argument("--key", type=str, help="256-битный ключ (64 hex-символа или путь к файлу с ключом)")
+        p_kuz.add_argument("--key-file", type=str, help="Путь к файлу с 256-битным ключом")
+        p_kuz.add_argument("--data", type=str, help="Строка данных для шифрования/расшифрования")
+        p_kuz.add_argument("--in-file", type=str, help="Входной файл с данными")
+        p_kuz.add_argument("--out-file", type=str, help="Выходной файл для сохранения результата")
+        p_kuz.add_argument("--mode", choices=["cbc", "ctr"], default="cbc", help="Режим шифрования (cbc или ctr, по умолчанию cbc)")
+        p_kuz.add_argument("--demo", action="store_true", help="Тест эталона RFC 7801")
 
     # Streebog Subparser
     p_stree = subparsers.add_parser("streebog", help="Модуль ГОСТ Р 34.11-2012 «Стрибог»")
@@ -762,7 +814,7 @@ def main():
             verbose=True,
         )
 
-    elif args.subcommand == "kuznyechik":
+    elif args.subcommand in ("kuznyechik", "kuznechik"):
         cmd_kuznyechik(args)
     elif args.subcommand == "streebog":
         cmd_streebog(args)

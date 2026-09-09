@@ -2,9 +2,12 @@
 # Author: Nazaryan Artem @Sl1dee36
 # Date: 05/2026.
 
+import base64
 import hmac
 import os
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
+
+from crypto.streebog import hmac_streebog512
 
 # RFC 7801 Section 4.1 Nonlinear Bijection Pi'
 PI = (
@@ -239,7 +242,7 @@ class Kuznyechik:
             keystream = self.encrypt_block(ctr_bytes)
             out.extend(_xor(chunk, keystream[:len(chunk)]))
             block_idx += 1
-            
+
         return iv + bytes(out)
 
     def decrypt_ctr(self, data: bytes) -> bytes:
@@ -260,3 +263,176 @@ class Kuznyechik:
             out.extend(_xor(chunk, keystream[:len(chunk)]))
             block_idx += 1
         return bytes(out)
+
+# Helper Functions for CLI
+
+def load_kuznyechik_key(key_input: Union[str, bytes]) -> bytes:
+    """
+    Загружает 256-битный (32 байта) ключ «Кузнечик» из различных источников:
+    - Путь к файлу (содержащему 64 hex-символа, base64 или 32 бинарных байта)
+    - 64-символьная hex-строка
+    - 44-символьная Base64-строка
+    - 32 бинарных байта
+    """
+    if isinstance(key_input, bytes):
+        if len(key_input) == 32:
+            return key_input
+        try:
+            key_input = key_input.decode("utf-8").strip()
+        except Exception:
+            raise ValueError(f"Длина байтов ключа: {len(key_input)}, ожидается ровно 32 байта")
+
+    if isinstance(key_input, str):
+        key_str = key_input.strip()
+        # Проверяем, является ли переданная строка путем к существующему файлу
+        if os.path.isfile(key_str):
+            with open(key_str, "rb") as f:
+                content = f.read()
+            if len(content) == 32:
+                return content
+            try:
+                text_content = content.decode("utf-8").strip()
+                return load_kuznyechik_key(text_content)
+            except UnicodeDecodeError:
+                raise ValueError(
+                    f"Файл ключа '{key_str}' имеет некорректный размер: {len(content)} байт (ожидается 32 байта или 64 hex-символа)"
+                )
+
+        cleaned = "".join(key_str.split())
+        if len(cleaned) == 64:
+            try:
+                return bytes.fromhex(cleaned)
+            except ValueError:
+                pass
+
+        try:
+            decoded_b64 = base64.b64decode(cleaned)
+            if len(decoded_b64) == 32:
+                return decoded_b64
+        except Exception:
+            pass
+
+        try:
+            raw = bytes.fromhex(cleaned)
+            if len(raw) == 32:
+                return raw
+            raise ValueError(f"Длина ключа должна составлять ровно 32 байта (64 hex-символа), получено {len(raw)} байт")
+        except ValueError as e:
+            raise ValueError(f"Не удалось распознать ключ «Кузнечик» (ожидался путь к файлу или 64 hex-символа): {e}")
+
+    raise TypeError(f"Неподдерживаемый тип ключа: {type(key_input)}")
+
+
+def generate_kuznyechik_key(out_file: Optional[str] = None) -> str:
+    """Генерирует криптостойкий 256-битный ключ (64 hex-символа) и при необходимости сохраняет в файл."""
+    key_bytes = os.urandom(32)
+    key_hex = key_bytes.hex()
+    if out_file:
+        dir_name = os.path.dirname(out_file)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+        with open(out_file, "w", encoding="utf-8") as f:
+            f.write(key_hex + "\n")
+    return key_hex
+
+
+def encrypt_string_kuznyechik(
+    plaintext: Union[str, bytes],
+    key: Union[str, bytes],
+    mode: str = "cbc",
+) -> str:
+    """
+    Шифрует строку или байты алгоритмом ГОСТ Р 34.12-2015 «Кузнечик» с аутентификацией (HMAC-Стрибог512) и солью.
+    Поддерживаемые режимы: 'cbc' (по умолчанию), 'ctr'.
+    Структура пакета:
+      - Префикс 'KUZ1' (4 байта)
+      - Байт режима 'C'/'T' (1 байт)
+      - Соль (16 байт)
+      - IV (16 байт)
+      - Шифротекст (N байт)
+      - Имитовставка HMAC-Стрибог-512 (64 байта)
+    Возвращает Base64-строку.
+    """
+    key_bytes = load_kuznyechik_key(key)
+    cipher = Kuznyechik(key_bytes)
+    data = plaintext.encode("utf-8") if isinstance(plaintext, str) else plaintext
+
+    mode_lower = mode.lower()
+    iv = os.urandom(16)
+    salt = os.urandom(16)
+
+    if mode_lower == "cbc":
+        mode_byte = b"C"
+        encrypted_raw = cipher.encrypt_cbc(data, iv=iv)
+    elif mode_lower == "ctr":
+        mode_byte = b"T"
+        encrypted_raw = cipher.encrypt_ctr(data, iv=iv)
+    else:
+        raise ValueError(f"Неподдерживаемый режим шифрования: '{mode}'. Допустимы: 'cbc', 'ctr'")
+
+    # Формируем заголовок и тело пакета: Magic (4) + Mode (1) + Salt (16) + Encrypted_raw (IV 16 + CT)
+    body = b"KUZ1" + mode_byte + salt + encrypted_raw
+    # Рассчитываем имитовставку HMAC-Стрибог512 по всему пакету
+    mac = hmac_streebog512(key_bytes, body)
+
+    full_packet = body + mac
+    return base64.b64encode(full_packet).decode("ascii")
+
+
+def decrypt_string_kuznyechik(
+    ciphertext_b64: str,
+    key: Union[str, bytes],
+    mode: str = "cbc",
+) -> str:
+    """
+    Расшифровывает строку Base64 алгоритмом ГОСТ Р 34.12-2015 «Кузнечик» с проверкой целостности HMAC-Стрибог512.
+    Если хотя бы один байт шифротекста поврежден или отсутствует, возбуждает ValueError.
+    Поддерживает аутентифицированный формат 'KUZ1' и устаревший сырой формат (обратная совместимость).
+    """
+    key_bytes = load_kuznyechik_key(key)
+    cipher = Kuznyechik(key_bytes)
+
+    try:
+        raw = base64.b64decode(ciphertext_b64.strip())
+    except Exception as e:
+        raise ValueError(f"Ошибка декодирования Base64 (шифротекст обрезан или поврежден): {e}")
+
+    # Аутентифицированный пакет нового формата (с солью и HMAC)
+    if raw.startswith(b"KUZ1"):
+        min_len = 4 + 1 + 16 + 16 + 64  # Magic(4) + Mode(1) + Salt(16) + IV(16) + MAC(64) = 101 байт
+        if len(raw) < min_len:
+            raise ValueError(
+                f"Ошибка контроля целостности: шифротекст не полон (длина {len(raw)} байт, ожидается не менее {min_len} байт)!"
+            )
+
+        body = raw[:-64]
+        expected_mac = raw[-64:]
+        calc_mac = hmac_streebog512(key_bytes, body)
+
+        if not hmac.compare_digest(calc_mac, expected_mac):
+            raise ValueError(
+                "Ошибка контроля целостности: шифротекст поврежден, обрезан или модифицирован (HMAC-Стрибог512 не совпал)!"
+            )
+
+        mode_byte = body[4:5]
+        iv_and_ct = body[21:]
+
+        if mode_byte == b"C":
+            decrypted_raw = cipher.decrypt_cbc(iv_and_ct)
+        elif mode_byte == b"T":
+            decrypted_raw = cipher.decrypt_ctr(iv_and_ct)
+        else:
+            raise ValueError(f"Неизвестный режим шифрования в заголовке пакета: {mode_byte}")
+
+        return decrypted_raw.decode("utf-8", errors="replace")
+
+    # Устаревший сырой формат (IV + CT без заголовка и HMAC)
+    mode_lower = mode.lower()
+    if mode_lower == "cbc":
+        decrypted_raw = cipher.decrypt_cbc(raw)
+    elif mode_lower == "ctr":
+        decrypted_raw = cipher.decrypt_ctr(raw)
+    else:
+        raise ValueError(f"Неподдерживаемый режим шифрования: '{mode}'. Допустимы: 'cbc', 'ctr'")
+
+    return decrypted_raw.decode("utf-8", errors="replace")

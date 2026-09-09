@@ -12,11 +12,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from crypto.streebog import streebog256, streebog512
 
-
-# ---------------------------------------------------------------------------
-# ASN.1 DER primitives (pure Python, zero external dependencies)
-# ---------------------------------------------------------------------------
-
 def _encode_length(length: int) -> bytes:
     if length < 0x80:
         return bytes([length])
@@ -156,10 +151,7 @@ def _der_decode_signature(der: bytes) -> Tuple[int, int]:
     s = int.from_bytes(items[1][1], "big", signed=True)
     return r, s
 
-
-# ---------------------------------------------------------------------------
 # GOST R 34.10-2012 Curve Parameters and Group Arithmetic
-# ---------------------------------------------------------------------------
 
 class GostCurve:
     """
