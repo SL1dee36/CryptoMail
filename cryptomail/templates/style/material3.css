@@ -1,6 +1,7 @@
 
 :root,
 [data-theme="light"] {
+    color-scheme: light;
     --md-color-surface: #F8F9FD;
     --md-color-surface-dim: #D9DCE1;
     --md-color-surface-bright: #F8F9FD;
@@ -46,6 +47,7 @@
 
 [data-theme="dark"],
 .dark {
+    color-scheme: dark;
     --md-color-surface: #101317;
     --md-color-surface-dim: #101317;
     --md-color-surface-bright: #37393E;
@@ -241,6 +243,11 @@ body {
     opacity: 0.7;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: var(--md-color-primary);
+}
+
 .m3-badge {
     display: inline-flex;
     align-items: center;
@@ -350,16 +357,55 @@ body {
 
 .cm-ecp-gradient-icon {
     font-size: 19px;
-    background: linear-gradient(135deg, #475569 0%, #1e293b 50%, #0f172a 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     display: inline-block;
     vertical-align: middle;
+    background-image:
+        radial-gradient(
+            circle at center,
+            #ffffff 0%,
+            #fb7185 20%,
+            #c084fc 42%,
+            #38bdf8 65%,
+            transparent 82%
+        ),
+        linear-gradient(135deg, #475569 0%, #1e293b 50%, #0f172a 100%);
+    background-size: 56px 56px, 100% 100%;
+    background-position: -75px center, 0 0;
+    background-repeat: no-repeat, no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 [data-theme="dark"] .cm-ecp-gradient-icon,
 .dark .cm-ecp-gradient-icon {
-    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 45%, #64748b 100%);
+    background-image:
+        radial-gradient(
+            circle at center,
+            #ffffff 0%,
+            #fb7185 20%,
+            #c084fc 42%,
+            #38bdf8 65%,
+            transparent 82%
+        ),
+        linear-gradient(135deg, #ffffff 0%, #cbd5e1 45%, #64748b 100%);
+    background-size: 56px 56px, 100% 100%;
+    background-position: -75px center, 0 0;
+    background-repeat: no-repeat, no-repeat;
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+@keyframes cm-glint-sweep {
+    0% {
+        background-position: -75px center, 0 0;
+    }
+    100% {
+        background-position: 65px center, 0 0;
+    }
+}
+
+.cm-ecp-gradient-icon.cm-glint-animating {
+    animation: cm-glint-sweep 1.4s cubic-bezier(0.35, 0, 0.25, 1) 1 forwards;
 }

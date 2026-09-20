@@ -15,6 +15,7 @@ html:not([data-layout="gmail"]) .cm-gmail-only {
 
 :root,
 [data-theme="light"] {
+    color-scheme: light;
     --gm-bg-app: #f6f8fc;
     --gm-bg-surface: #ffffff;
     --gm-bg-sidebar: #f6f8fc;
@@ -36,13 +37,20 @@ html:not([data-layout="gmail"]) .cm-gmail-only {
     --gm-fab-text: #001d35;
     --gm-fab-hover: #b3ddfc;
     --gm-row-hover: #f2f6fc;
-    --gm-row-selected: #c2e7ff33;
+    --gm-row-selected: #e8f0fe;
+    --gm-checkbox-border: #747775;
+    --gm-checkbox-border-hover: #1f1f1f;
+    --gm-checkbox-bg: transparent;
+    --gm-checkbox-bg-hover: rgba(60, 64, 67, 0.08);
+    --gm-checkbox-checked-bg: #0b57d0;
+    --gm-checkbox-checked-border: #0b57d0;
     --gm-shadow-elevated: none;
     --gm-shadow-compose: none;
 }
 
 [data-theme="dark"],
 .dark {
+    color-scheme: dark;
     --gm-bg-app: #131314;
     --gm-bg-surface: #1e1f20;
     --gm-bg-sidebar: #131314;
@@ -64,7 +72,13 @@ html:not([data-layout="gmail"]) .cm-gmail-only {
     --gm-fab-text: #c2e7ff;
     --gm-fab-hover: #005a91;
     --gm-row-hover: #282a2c;
-    --gm-row-selected: #004a7740;
+    --gm-row-selected: #1f3752;
+    --gm-checkbox-border: #8e918f;
+    --gm-checkbox-border-hover: #e3e3e3;
+    --gm-checkbox-bg: transparent;
+    --gm-checkbox-bg-hover: rgba(255, 255, 255, 0.08);
+    --gm-checkbox-checked-bg: #a8c7fa;
+    --gm-checkbox-checked-border: #a8c7fa;
     --gm-shadow-elevated: none;
     --gm-shadow-compose: none;
 }
@@ -75,6 +89,46 @@ html[data-layout="gmail"] body {
     font-family: "Google Sans", Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow-x: hidden;
 }
+
+/* Lock entire window scrolling in Gmail mail view mode */
+html[data-layout="gmail"]:has(.gm-mail-view),
+html[data-layout="gmail"]:has(.gm-mail-view) body,
+html[data-layout="gmail"].gm-has-mail-view,
+html[data-layout="gmail"].gm-has-mail-view body,
+html[data-layout="gmail"] body.gm-has-mail-view {
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+
+html[data-layout="gmail"]:has(.gm-mail-view) #main-content-wrapper,
+html[data-layout="gmail"].gm-has-mail-view #main-content-wrapper,
+html[data-layout="gmail"] body.gm-has-mail-view #main-content-wrapper {
+    height: calc(100vh - 64px) !important;
+    height: calc(100dvh - 64px) !important;
+    max-height: calc(100vh - 64px) !important;
+    max-height: calc(100dvh - 64px) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+}
+
+.gm-workspace-container {
+    height: 100% !important;
+    max-height: 100% !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+
 
 .cm-ecp-logo-badge {
     width: 38px;
@@ -94,22 +148,62 @@ html[data-layout="gmail"] body {
 
 .cm-ecp-gradient-icon {
     font-size: 19px;
-    background: linear-gradient(135deg, #475569 0%, #1e293b 50%, #0f172a 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     display: inline-block;
     vertical-align: middle;
+    background-image:
+        radial-gradient(
+            circle at center,
+            #ffffff 0%,
+            #fb7185 20%,
+            #c084fc 42%,
+            #38bdf8 65%,
+            transparent 82%
+        ),
+        linear-gradient(135deg, #475569 0%, #1e293b 50%, #0f172a 100%);
+    background-size: 56px 56px, 100% 100%;
+    background-position: -75px center, 0 0;
+    background-repeat: no-repeat, no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 [data-theme="dark"] .cm-ecp-gradient-icon,
 .dark .cm-ecp-gradient-icon {
-    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 45%, #64748b 100%);
+    background-image:
+        radial-gradient(
+            circle at center,
+            #ffffff 0%,
+            #fb7185 20%,
+            #c084fc 42%,
+            #38bdf8 65%,
+            transparent 82%
+        ),
+        linear-gradient(135deg, #ffffff 0%, #cbd5e1 45%, #64748b 100%);
+    background-size: 56px 56px, 100% 100%;
+    background-position: -75px center, 0 0;
+    background-repeat: no-repeat, no-repeat;
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+@keyframes cm-glint-sweep {
+    0% {
+        background-position: -75px center, 0 0;
+    }
+    100% {
+        background-position: 65px center, 0 0;
+    }
+}
+
+.cm-ecp-gradient-icon.cm-glint-animating {
+    animation: cm-glint-sweep 1.4s cubic-bezier(0.35, 0, 0.25, 1) 1 forwards;
 }
 
 .gm-header {
     height: 64px;
+    flex-shrink: 0;
     background-color: var(--gm-bg-app);
     display: flex;
     align-items: center;
@@ -250,19 +344,36 @@ html[data-layout="gmail"] body {
 
 .gm-workspace {
     display: flex;
-    min-height: calc(100vh - 64px);
+    flex-direction: row;
+    flex: 1 1 0%;
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    max-height: calc(100vh - 64px);
+    max-height: calc(100dvh - 64px);
     width: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .gm-sidebar {
     width: 256px;
+    height: 100%;
+    max-height: 100%;
     flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
     background-color: var(--gm-bg-sidebar);
     padding: 12px 12px 24px 12px;
+    padding-left: 0px;
     display: flex;
     flex-direction: column;
     gap: 16px;
     transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease;
+}
+
+.gm-sidebar::-webkit-scrollbar {
+    display: none;
 }
 
 .gm-sidebar.collapsed {
@@ -307,6 +418,7 @@ html[data-layout="gmail"] body {
     transition: all 0.2s ease;
     text-decoration: none;
     user-select: none;
+    margin-left: 12px;
 }
 
 .gm-compose-btn:hover {
@@ -322,16 +434,16 @@ html[data-layout="gmail"] body {
 .gm-nav-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    /* gap: 2px; */
 }
 
 .gm-nav-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 18px 8px 16px;
+    padding: 6px 18px 6px 26px;
     border-radius: 0 24px 24px 0;
-    margin-right: 8px;
+    /* margin-right: 8px; */
     font-size: 14px;
     font-weight: 500;
     color: var(--gm-text-main);
@@ -372,6 +484,8 @@ html[data-layout="gmail"] body {
     font-size: 12px;
     font-weight: 600;
     opacity: 0.85;
+    border-radius: 64px;
+    padding-inline: 6px;
 }
 
 .gm-sidebar-section-title {
@@ -380,7 +494,7 @@ html[data-layout="gmail"] body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--gm-text-muted);
-    padding: 8px 16px 4px 16px;
+    padding: 8px 16px 4px 26px;
 }
 
 .gm-storage-card {
@@ -393,23 +507,26 @@ html[data-layout="gmail"] body {
 }
 
 .gm-mail-view {
-    flex: 1;
+    flex: 1 1 0%;
+    min-height: 0;
+    min-width: 0;
+    height: calc(100% - 16px);
+    max-height: calc(100% - 16px);
     display: flex;
     flex-direction: column;
     background-color: var(--gm-bg-surface);
     border-radius: 16px;
-    margin: 12px 16px 16px 0;
+    margin: 0 16px 16px 0;
     overflow: hidden;
-    border: 1px solid var(--gm-border);
 }
 
 .gm-toolbar {
     height: 48px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    border-bottom: 1px solid var(--gm-border-light);
     background-color: var(--gm-bg-surface);
 }
 
@@ -429,6 +546,7 @@ html[data-layout="gmail"] body {
 
 .gm-tabs {
     display: flex;
+    flex-shrink: 0;
     border-bottom: 1px solid var(--gm-border);
     background-color: var(--gm-bg-surface);
 }
@@ -475,8 +593,30 @@ html[data-layout="gmail"] body {
 }
 
 .gm-message-list {
-    flex: 1;
+    flex: 1 1 0%;
+    min-height: 0;
+    height: 100%;
     overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+.gm-message-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.gm-message-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.gm-message-list::-webkit-scrollbar-thumb {
+    background-color: rgba(120, 120, 120, 0.25);
+    border-radius: 4px;
+}
+
+.gm-message-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(120, 120, 120, 0.45);
 }
 
 .gm-message-row {
@@ -507,6 +647,126 @@ html[data-layout="gmail"] body {
 .gm-message-row.unread .gm-msg-subject {
     color: var(--gm-text-main);
     font-weight: 700;
+}
+
+/* Gmail Custom Checkbox & Form Controls */
+.gm-row-checkbox,
+.gm-master-checkbox,
+.gm-toolbar input[type="checkbox"],
+.gm-row-tools input[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 2px solid var(--gm-checkbox-border) !important;
+    border-radius: 3px !important;
+    background-color: var(--gm-checkbox-bg) !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+    outline: none !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-size: 11px 11px !important;
+}
+
+.gm-row-checkbox:hover,
+.gm-master-checkbox:hover,
+.gm-toolbar input[type="checkbox"]:hover,
+.gm-row-tools input[type="checkbox"]:hover {
+    border-color: var(--gm-checkbox-border-hover) !important;
+    background-color: var(--gm-checkbox-bg-hover) !important;
+}
+
+.gm-row-checkbox:focus-visible,
+.gm-master-checkbox:focus-visible,
+.gm-toolbar input[type="checkbox"]:focus-visible,
+.gm-row-tools input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--gm-accent-blue) !important;
+    outline-offset: 1px !important;
+}
+
+/* Checked state - Light Theme */
+.gm-row-checkbox:checked,
+.gm-master-checkbox:checked,
+.gm-toolbar input[type="checkbox"]:checked,
+.gm-row-tools input[type="checkbox"]:checked {
+    background-color: var(--gm-checkbox-checked-bg) !important;
+    border-color: var(--gm-checkbox-checked-border) !important;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.5 8.5L6.5 11.5L12.5 4.5' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+/* Checked state - Dark Theme */
+[data-theme="dark"] .gm-row-checkbox:checked,
+.dark .gm-row-checkbox:checked,
+[data-theme="dark"] .gm-master-checkbox:checked,
+.dark .gm-master-checkbox:checked,
+[data-theme="dark"] .gm-toolbar input[type="checkbox"]:checked,
+.dark .gm-toolbar input[type="checkbox"]:checked,
+[data-theme="dark"] .gm-row-tools input[type="checkbox"]:checked,
+.dark .gm-row-tools input[type="checkbox"]:checked {
+    background-color: var(--gm-checkbox-checked-bg) !important;
+    border-color: var(--gm-checkbox-checked-border) !important;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.5 8.5L6.5 11.5L12.5 4.5' stroke='%2300284e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+/* Indeterminate state - Light Theme */
+.gm-row-checkbox:indeterminate,
+.gm-master-checkbox:indeterminate,
+.gm-toolbar input[type="checkbox"]:indeterminate,
+.gm-row-tools input[type="checkbox"]:indeterminate {
+    background-color: var(--gm-checkbox-checked-bg) !important;
+    border-color: var(--gm-checkbox-checked-border) !important;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.5 8H12.5' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+}
+
+/* Indeterminate state - Dark Theme */
+[data-theme="dark"] .gm-row-checkbox:indeterminate,
+.dark .gm-row-checkbox:indeterminate,
+[data-theme="dark"] .gm-master-checkbox:indeterminate,
+.dark .gm-master-checkbox:indeterminate,
+[data-theme="dark"] .gm-toolbar input[type="checkbox"]:indeterminate,
+.dark .gm-toolbar input[type="checkbox"]:indeterminate,
+[data-theme="dark"] .gm-row-tools input[type="checkbox"]:indeterminate,
+.dark .gm-row-tools input[type="checkbox"]:indeterminate {
+    background-color: var(--gm-checkbox-checked-bg) !important;
+    border-color: var(--gm-checkbox-checked-border) !important;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.5 8H12.5' stroke='%2300284e' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+}
+
+/* Radio buttons */
+input[type="radio"] {
+    accent-color: var(--gm-accent-blue);
+    cursor: pointer;
+}
+
+/* Message row selection highlight */
+.gm-message-row.selected,
+.gm-message-row:has(.gm-row-checkbox:checked) {
+    background-color: var(--gm-row-selected) !important;
+}
+
+.gm-message-row.selected:hover,
+.gm-message-row:has(.gm-row-checkbox:checked):hover {
+    background-color: var(--gm-row-selected) !important;
+    filter: brightness(0.96);
+}
+
+[data-theme="dark"] .gm-message-row.selected:hover,
+.dark .gm-message-row.selected:hover,
+[data-theme="dark"] .gm-message-row:has(.gm-row-checkbox:checked):hover,
+.dark .gm-message-row:has(.gm-row-checkbox:checked):hover {
+    filter: brightness(1.12);
 }
 
 .gm-row-tools {
@@ -855,6 +1115,8 @@ html[data-layout="gmail"] body {
         margin: 0;
         border-radius: 0;
         border: none;
+        height: 100% !important;
+        max-height: 100% !important;
     }
 
     .gm-msg-sender {

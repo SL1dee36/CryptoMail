@@ -159,9 +159,67 @@
             {% endif %}
         </div>
     </div>
+
+    {% if user.role == 'admin' %}
+    <div class="m3-card p-5 flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)] mb-4">
+            <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 rounded-xl m3-badge-warning flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-users-viewfinder"></i>
+                </div>
+                <h2 class="text-base font-bold">Все сообщения пользователей (Администратор)</h2>
+            </div>
+            <span class="m3-badge m3-badge-neutral text-xs">
+                {{ all_messages|length }}
+            </span>
+        </div>
+
+        {% if all_messages %}
+        <div class="space-y-3 flex-grow">
+            {% for m in all_messages %}
+            <a href="/messages/{{ m.id }}"
+                class="block p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] hover:bg-[var(--md-color-surface-container-high)] transition group no-underline">
+                <div class="flex items-center justify-between text-xs mb-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-[var(--md-color-primary)]">
+                            От: {{ m.sender.username }}
+                        </span>
+                        <i class="fa-solid fa-arrow-right text-[9px] opacity-50"></i>
+                        <span class="font-bold text-[var(--md-color-secondary)]">
+                            Кому: {{ m.recipient.username }}
+                        </span>
+                    </div>
+                    <span class="opacity-60 text-[11px]">{{ m.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                </div>
+                <div class="text-sm font-semibold mb-2 line-clamp-1">
+                    {{ m.subject }}
+                </div>
+                <div class="flex items-center space-x-2 text-[11px]">
+                    <span
+                        class="m3-badge {% if 'RSA' in m.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-[10px]">
+                        {{ m.encryption_type }}
+                    </span>
+                    {% if m.ecp_signature %}
+                    <span class="m3-badge m3-badge-success text-[10px]">
+                        <i class="fa-solid fa-signature text-[9px]"></i>
+                        <span>ЭЦП</span>
+                    </span>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="py-12 text-center opacity-60 text-xs flex-grow flex flex-col items-center justify-center">
+            <i class="fa-solid fa-envelope-open text-2xl mb-2 opacity-50"></i>
+            <span>Нет сообщений между пользователями</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
-<div class="cm-gmail-only w-full">
+<div class="cm-gmail-only gm-workspace-container w-full h-full flex flex-col overflow-hidden">
     <div class="gm-workspace">
         <aside class="gm-sidebar" id="gm-sidebar">
             {% if user.role != 'guest' %}
@@ -192,6 +250,16 @@
                     </div>
                     <span class="gm-nav-badge">{{ sent_messages|length }}</span>
                 </div>
+
+                {% if user.role == 'admin' %}
+                <div class="gm-nav-item" id="gm-nav-all" onclick="switchGmailTab('all')" title="Все сообщения пользователей">
+                    <div class="gm-nav-lead">
+                        <i class="fa-solid fa-users-viewfinder gm-nav-icon text-amber-500"></i>
+                        <span class="gm-nav-text text-amber-600 dark:text-amber-400 font-semibold">Все письма</span>
+                    </div>
+                    <span class="gm-nav-badge" style="background-color: rgba(245, 158, 11, 0.2); color: #f59e0b;">{{ all_messages|length }}</span>
+                </div>
+                {% endif %}
 
                 <a href="/ecp" class="gm-nav-item no-underline">
                     <div class="gm-nav-lead">
@@ -235,8 +303,9 @@
         <section class="gm-mail-view">
             <div class="gm-toolbar">
                 <div class="gm-toolbar-left">
-                    <input type="checkbox" onchange="toggleSelectAllGmail(this)"
-                        class="rounded w-4 h-4 cursor-pointer text-blue-600 focus:ring-0" title="Выбрать все">
+                    <input type="checkbox" id="gm-master-checkbox" onchange="toggleSelectAllGmail(this)"
+                        class="gm-master-checkbox rounded w-4 h-4 cursor-pointer text-blue-600 focus:ring-0"
+                        title="Выбрать все">
                     <button type="button" class="gm-icon-btn" onclick="location.reload()" title="Обновить список писем">
                         <i class="fa-solid fa-rotate-right text-xs"></i>
                     </button>
@@ -267,6 +336,13 @@
                     <span>Отправленные</span>
                     <span class="gm-tab-badge">{{ sent_messages|length }}</span>
                 </div>
+                {% if user.role == 'admin' %}
+                <div class="gm-tab" id="gm-tab-all" onclick="switchGmailTab('all')" title="Все сообщения пользователей между собой">
+                    <i class="fa-solid fa-users-viewfinder text-base text-amber-500"></i>
+                    <span>Все сообщения</span>
+                    <span class="gm-tab-badge" style="background-color: rgba(245, 158, 11, 0.2); color: #f59e0b;">{{ all_messages|length }}</span>
+                </div>
+                {% endif %}
             </div>
 
             <div id="gm-inbox-list" class="gm-message-list">
@@ -414,6 +490,74 @@
                 </div>
                 {% endif %}
             </div>
+
+            {% if user.role == 'admin' %}
+            <div id="gm-all-list" class="gm-message-list" style="display: none;">
+                {% if all_messages %}
+                {% for m in all_messages %}
+                <div class="gm-message-row"
+                    data-search="{{ m.sender.username }} {{ m.recipient.username }} {{ m.subject }} {{ m.encryption_type }} {% if m.ecp_signature %}эцп{% endif %}"
+                    onclick="window.location='/messages/{{ m.id }}'">
+
+                    <div class="gm-row-tools" onclick="event.stopPropagation()">
+                        <input type="checkbox"
+                            class="gm-row-checkbox rounded w-4 h-4 cursor-pointer text-blue-600 focus:ring-0">
+                        <button type="button" id="star-all-{{ m.id }}" class="gm-star-btn"
+                            onclick="toggleStar('all-{{ m.id }}', event)" title="Пометить звёздочкой">
+                            <i class="fa-regular fa-star"></i>
+                        </button>
+                    </div>
+
+                    <div class="gm-msg-sender flex items-center gap-1.5" title="От: {{ m.sender.username }} → Кому: {{ m.recipient.username }}">
+                        <span class="font-bold text-[var(--gm-text-main)]">{{ m.sender.username }}</span>
+                        <i class="fa-solid fa-arrow-right text-[9px] opacity-50"></i>
+                        <span class="opacity-80">{{ m.recipient.username }}</span>
+                    </div>
+
+                    <div class="gm-msg-content-preview">
+                        <span class="gm-msg-subject">{{ m.subject }}</span>
+                        <span class="gm-msg-snippet">- Защищенное сообщение между пользователями</span>
+                    </div>
+
+                    <div class="gm-msg-badges">
+                        {% if 'RSA' in m.encryption_type %}
+                        <span class="gm-chip gm-chip-blue" title="Асимметричный шифр RSA">{{ m.encryption_type }}</span>
+                        {% else %}
+                        <span class="gm-chip gm-chip-orange" title="Симметричный шифр ГОСТ Кузнечик">Кузнечик</span>
+                        {% endif %}
+
+                        {% if m.ecp_signature %}
+                        <span class="gm-chip gm-chip-green" title="ЭЦП ГОСТ Р 34.10-2012">
+                            <i class="fa-solid fa-signature text-[9px]"></i>
+                            <span>ЭЦП</span>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="gm-msg-date">
+                        {{ m.created_at.strftime('%d %b') }}
+                    </div>
+
+                    <div class="gm-row-hover-actions" onclick="event.stopPropagation()">
+                        <a href="/messages/{{ m.id }}/export/pdf" target="_blank" class="gm-quick-btn no-underline"
+                            title="Экспорт в PDF">
+                            <i class="fa-solid fa-file-pdf text-[11px]"></i>
+                        </a>
+                        <a href="/messages/{{ m.id }}" class="gm-quick-btn no-underline" title="Открыть письмо">
+                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="gm-empty-state">
+                    <i class="fa-solid fa-users-viewfinder gm-empty-icon"></i>
+                    <div class="text-base font-semibold mb-1 text-[var(--gm-text-main)]">Сообщений пока нет</div>
+                    <div class="text-xs opacity-75">В системе ещё не зарегистрировано переписок между пользователями.</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
         </section>
     </div>
 
@@ -473,11 +617,11 @@
                     </div>
                 </div>
 
-                <div id="gm-kuz-pass-box" class="gm-compose-field" style="display: none;">
+                <!-- <div id="gm-kuz-pass-box" class="gm-compose-field" style="display: none;">
                     <label for="gm-kuz-pass">Пароль:</label>
                     <input type="text" name="kuz_passphrase" id="gm-kuz-pass"
                         placeholder="Кодовая фраза (необязательно)" class="gm-compose-input font-mono text-xs">
-                </div>
+                </div> -->
 
                 <textarea name="body" required placeholder="Введите текст сообщения..."
                     class="gm-compose-textarea"></textarea>

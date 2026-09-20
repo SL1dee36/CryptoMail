@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(200000)
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response as RawResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -36,6 +36,7 @@ from crypto.ecp import (
 )
 from crypto.kuznyechik import Kuznyechik
 from crypto.rsa import (
+    build_rsa_keypair_from_primes,
     export_private_key_pem,
     export_public_key_pem,
     generate_rsa_keypair,
@@ -725,6 +726,14 @@ def inbox_route(request: Request, db: Session = Depends(get_db)):
 
     potential_recipients = db.query(User).filter(User.id != user.id).all()
 
+    all_messages = []
+    if user.role == "admin":
+        all_messages = (
+            db.query(Message)
+            .order_by(Message.created_at.desc())
+            .all()
+        )
+
     return render(
         request,
         "index.html",
@@ -733,6 +742,7 @@ def inbox_route(request: Request, db: Session = Depends(get_db)):
             "current_user": user,
             "received_messages": received,
             "sent_messages": sent,
+            "all_messages": all_messages,
             "cached_message_ids": cached_ids,
             "potential_recipients": potential_recipients,
             "active_page": "inbox",
@@ -1029,20 +1039,155 @@ def download_rsa_private(request: Request, db: Session = Depends(get_db)):
 
 
 @app.post("/ecp/rsa/reissue")
-def rsa_reissue_action(
+async def rsa_reissue_action(
     request: Request,
     key_size: int = Form(4096),
+    custom_p: Optional[str] = Form(None),
+    custom_q: Optional[str] = Form(None),
+    use_server_pregen: Optional[bool] = Form(False),
+    primes_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     user = require_auth(request, db)
-    priv, pub = get_or_create_rsa_keypair(key_size=key_size)
+    p: Optional[int] = None
+    q: Optional[int] = None
+    source_desc = None
+
+    # 1. Parse from uploaded file if present
+    if primes_file and hasattr(primes_file, "filename") and primes_file.filename:
+        try:
+            raw_bytes = await primes_file.read()
+            if raw_bytes and len(raw_bytes.strip()) > 0:
+                content = raw_bytes.decode("utf-8", errors="ignore").strip()
+                try:
+                    f_data = json.loads(content)
+                    p_val = f_data.get("p") or f_data.get("p_hex")
+                    q_val = f_data.get("q") or f_data.get("q_hex")
+                    if p_val and q_val:
+                        p = int(str(p_val).strip(), 0)
+                        q = int(str(q_val).strip(), 0)
+                        source_desc = f"файла {primes_file.filename}"
+                except json.JSONDecodeError:
+                    lines = [line.strip() for line in content.splitlines() if line.strip() and not line.strip().startswith("#")]
+                    if len(lines) >= 2:
+                        p = int(lines[0], 0)
+                        q = int(lines[1], 0)
+                        source_desc = f"файла {primes_file.filename}"
+        except Exception as e:
+            if "session" in request.scope:
+                request.session["alert_message"] = f"Ошибка чтения файла параметров: {e}"
+                request.session["alert_type"] = "error"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 2. Check if server pregen requested
+    if (p is None or q is None) and bool(use_server_pregen):
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pregen_dir = os.path.join(base_dir, "data", "rsa_pregen")
+        loaded = False
+        if os.path.exists(pregen_dir):
+            cands = ["primes.json", "rsa32k_primes.json", "pq.json", "primes_32k.json"]
+            for cand in cands:
+                cand_p = os.path.join(pregen_dir, cand)
+                if os.path.exists(cand_p):
+                    try:
+                        with open(cand_p, "r", encoding="utf-8") as f:
+                            pdata = json.load(f)
+                        p = int(str(pdata["p"]).strip(), 0)
+                        q = int(str(pdata["q"]).strip(), 0)
+                        source_desc = f"хранилища {cand}"
+                        loaded = True
+                        break
+                    except Exception:
+                        pass
+            if not loaded:
+                p_file = os.path.join(pregen_dir, "p.txt")
+                q_file = os.path.join(pregen_dir, "q.txt")
+                if os.path.exists(p_file) and os.path.exists(q_file):
+                    try:
+                        p = int(open(p_file, "r", encoding="utf-8").read().strip(), 0)
+                        q = int(open(q_file, "r", encoding="utf-8").read().strip(), 0)
+                        source_desc = "файлов data/rsa_pregen/p.txt, q.txt"
+                        loaded = True
+                    except Exception:
+                        pass
+        if not loaded:
+            if "session" in request.scope:
+                request.session["alert_message"] = "Предвычисленные параметры P и Q не найдены в data/rsa_pregen. Сгенерируйте их командой 'python cli.py rsa-pregen' или укажите вручную."
+                request.session["alert_type"] = "error"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 3. Check custom_p and custom_q text inputs
+    if (p is None or q is None) and custom_p and custom_p.strip():
+        p_raw = custom_p.strip()
+        if p_raw.startswith("{") and "}" in p_raw:
+            try:
+                jdata = json.loads(p_raw)
+                p = int(str(jdata.get("p") or jdata.get("p_hex")).strip(), 0)
+                q = int(str(jdata.get("q") or jdata.get("q_hex")).strip(), 0)
+                source_desc = "вставленного JSON"
+            except Exception as e:
+                if "session" in request.scope:
+                    request.session["alert_message"] = f"Некорректный JSON в поле P: {e}"
+                    request.session["alert_type"] = "error"
+                return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+        elif custom_q and custom_q.strip():
+            try:
+                p = int(p_raw, 0)
+                q = int(custom_q.strip(), 0)
+                source_desc = "полей ввода P и Q"
+            except Exception as e:
+                if "session" in request.scope:
+                    request.session["alert_message"] = f"Некорректный формат чисел P или Q (требуется десятичное число или 0x...): {e}"
+                    request.session["alert_type"] = "error"
+                return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 4. If P and Q were specified, validate and construct keypair
+    if p is not None and q is not None:
+        if p <= 1 or q <= 1:
+            if "session" in request.scope:
+                request.session["alert_message"] = "Числа P и Q должны быть больше 1."
+                request.session["alert_type"] = "error"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+        if p == q:
+            if "session" in request.scope:
+                request.session["alert_message"] = "Множители P и Q не могут быть одинаковыми."
+                request.session["alert_type"] = "error"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+        e = 65537
+        phi = (p - 1) * (q - 1)
+        import math
+        if math.gcd(e, phi) != 1:
+            if "session" in request.scope:
+                request.session["alert_message"] = "Множители P и Q не подходят для открытой экспоненты e=65537: gcd(e, phi) != 1."
+                request.session["alert_type"] = "error"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+        try:
+            priv, pub = build_rsa_keypair_from_primes(p, q, public_exponent=e)
+            bits = (p * q).bit_length()
+        except Exception as err:
+            if "session" in request.scope:
+                request.session["alert_message"] = f"Ошибка сборки RSA ключа: {err}"
+                request.session["alert_type"] = "error"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+        tag = f"RSA-{bits} бит ({bits // 1024}K)" if bits % 1024 == 0 else f"RSA-{bits} бит"
+        if source_desc:
+            tag += f" из {source_desc}"
+
+    else:
+        # Standard generation from pool / generator
+        priv, pub = get_or_create_rsa_keypair(key_size=key_size)
+        tag = "RSA-32K (32768 бит)" if key_size >= 32768 else f"RSA-{key_size} бит"
+
     user.rsa_public_key = export_public_key_pem(pub)
     user.rsa_private_key = export_private_key_pem(priv)
     db.commit()
 
-    tag = "RSA-32K (32768 бит)" if key_size >= 32768 else f"RSA-{key_size} бит"
     if "session" in request.scope:
-        request.session["alert_message"] = f"Ключевая пара {tag} успешно сгенерирована и сохранена!"
+        request.session["alert_message"] = f"Ключевая пара {tag} успешно сохранена и активирована!"
         request.session["alert_type"] = "success"
     return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
 
