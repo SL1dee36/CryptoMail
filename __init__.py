@@ -5,7 +5,7 @@
 VERSION_INFO = {
     "app": "2.2.1",
     "api": "2.2.1",
-    "ui": "2.1.0",
+    "ui": "2.2.1",
     "crypto_core": "GOST R 34.12-2015 / GOST R 34.11-2012 / GOST R 34.10-2012 / RSA-32K",
 }
 

@@ -83,10 +83,17 @@ html:not([data-layout="gmail"]) .cm-gmail-only {
     --gm-shadow-compose: none;
 }
 
+html[data-layout="gmail"] body,
+html[data-layout="gmail"] button,
+html[data-layout="gmail"] input,
+html[data-layout="gmail"] select,
+html[data-layout="gmail"] textarea {
+    font-family: 'Google Sans Flex', "Google Sans", Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
 html[data-layout="gmail"] body {
     background-color: var(--gm-bg-app) !important;
     color: var(--gm-text-main) !important;
-    font-family: "Google Sans", Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow-x: hidden;
 }
 

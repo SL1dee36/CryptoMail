@@ -226,7 +226,11 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Static Fallbacks & Utilities
 @app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.svg", include_in_schema=False)
 def favicon():
+    icon_path = os.path.join(STYLE_DIR, "cm-logo.svg")
+    if os.path.exists(icon_path):
+        return FileResponse(icon_path, media_type="image/svg+xml")
     return Response(status_code=204)
 
 

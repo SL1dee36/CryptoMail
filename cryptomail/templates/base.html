@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CryptoMail{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/templates/style/cm-logo.svg">
+    <link rel="alternate icon" href="/favicon.ico">
     <script>
         (function () {
             try {
@@ -21,12 +23,27 @@
             } catch (e) { }
         })();
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/templates/style/material3.css">
     <link rel="stylesheet" href="/templates/style/gmail.css">
     <script src="/templates/style/theme.js"></script>
     <script src="/templates/style/layout.js"></script>
     <script src="/templates/style/crypto_tracker.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Google Sans Flex"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+                    }
+                }
+            }
+        };
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
