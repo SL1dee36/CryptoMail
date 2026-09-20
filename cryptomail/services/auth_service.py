@@ -221,10 +221,10 @@ def start_3fa_login(db: Session, login_input: str, password: str) -> Tuple[Optio
     }
 
     # Dispatch email through local SMTP server
-    subject = f"Код подтверждения 3FA: {otp_code}"
+    subject = f"Код подтверждения: {otp_code}"
     body = (
         f"Здравствуйте, {user.username}!\n\n"
-        f"Ваш одноразовый код для входа (Фактор 2): {otp_code}\n\n"
+        f"Ваш одноразовый код для входа: {otp_code}\n\n"
         f"Код действителен в течение 5 минут. Если вы не выполняли вход, проигнорируйте это письмо.\n"
         f"--\nСлужба безопасности CryptoMail Local SMTP"
     )

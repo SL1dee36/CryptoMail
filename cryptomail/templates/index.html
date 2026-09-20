@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}CryptoMail — Личный кабинет{% endblock %}
+{% block title %}CryptoMail{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <!-- Top Action Bar -->
+<div class="space-y-6 cm-classic-only">
     <div class="m3-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
             <div class="flex items-center space-x-3">
@@ -20,18 +19,18 @@
 
         <div class="flex flex-wrap items-center gap-2.5">
             {% if user.role != 'guest' %}
-                <a href="/messages/compose" class="m3-btn-filled text-sm">
-                    <i class="fa-solid fa-pen-nib"></i>
-                    <span>Написать</span>
-                </a>
+            <a href="/messages/compose" class="m3-btn-filled text-sm">
+                <i class="fa-solid fa-pen-nib"></i>
+                <span>Написать</span>
+            </a>
             {% else %}
-                <span class="m3-badge m3-badge-warning py-2 px-3 text-xs">
-                    <i class="fa-solid fa-eye mr-1"></i> Гость
-                </span>
+            <span class="m3-badge m3-badge-warning py-2 px-3 text-xs">
+                <i class="fa-solid fa-eye mr-1"></i> Гость
+            </span>
             {% endif %}
 
-            <!-- User Export Buttons -->
-            <div class="flex items-center space-x-1.5 p-1 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
+            <div
+                class="flex items-center space-x-1.5 p-1 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
                 <a href="/export/my/json" class="m3-btn-tonal text-xs py-1.5 px-2.5" title="Экспорт JSON">
                     <i class="fa-solid fa-file-code"></i>
                     <span>JSON</span>
@@ -44,9 +43,7 @@
         </div>
     </div>
 
-    <!-- Message Lists: Inbox and Outbox Tabs -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Inbox -->
         <div class="m3-card p-5 flex flex-col">
             <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)] mb-4">
                 <div class="flex items-center space-x-2.5">
@@ -61,53 +58,57 @@
             </div>
 
             {% if received_messages %}
-                <div class="space-y-3 flex-grow">
-                    {% for m in received_messages %}
-                        <a href="/messages/{{ m.id }}"
-                           class="block p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] hover:bg-[var(--md-color-surface-container-high)] transition group no-underline">
-                            <div class="flex items-center justify-between text-xs mb-1">
-                                <span class="font-bold text-[var(--md-color-primary)]">
-                                    От: {{ m.sender.username }}
-                                </span>
-                                <span class="opacity-60 text-[11px]">{{ m.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
-                            </div>
-                            <div class="text-sm font-semibold mb-2 line-clamp-1">
-                                {{ m.subject }}
-                            </div>
-                            <div class="flex items-center space-x-2 text-[11px]">
-                                <span class="m3-badge {% if 'RSA' in m.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-[10px]">
-                                    {{ m.encryption_type }}
-                                </span>
-                                {% if m.ecp_signature %}
-                                    <span class="m3-badge m3-badge-success text-[10px]">
-                                        <i class="fa-solid fa-signature text-[9px]"></i>
-                                        <span>ЭЦП</span>
-                                    </span>
-                                {% endif %}
-                                {% if cached_message_ids and m.id in cached_message_ids %}
-                                    <span class="m3-badge m3-badge-success text-[10px] ml-auto">
-                                        <i class="fa-solid fa-memory text-[9px]"></i>
-                                        <span>В памяти</span>
-                                    </span>
-                                {% else %}
-                                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); CryptoTaskTracker.startDecryption('{{ m.id }}', function() { const el = document.getElementById('msg-cache-status-{{ m.id }}'); if (el) el.outerHTML = '<span class=\'m3-badge m3-badge-success text-[10px] ml-auto\'><i class=\'fa-solid fa-memory text-[9px]\'></i><span>В памяти</span></span>'; });" id="msg-cache-status-{{ m.id }}" class="m3-btn-tonal text-[10px] py-0.5 px-2.5 rounded-full ml-auto hover:opacity-90 transition" title="Запустить дешифрование сообщения">
-                                        <i class="fa-solid fa-unlock-keyhole text-[9px]"></i>
-                                        <span>Расшифровать</span>
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </a>
-                    {% endfor %}
-                </div>
+            <div class="space-y-3 flex-grow">
+                {% for m in received_messages %}
+                <a href="/messages/{{ m.id }}"
+                    class="block p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] hover:bg-[var(--md-color-surface-container-high)] transition group no-underline">
+                    <div class="flex items-center justify-between text-xs mb-1">
+                        <span class="font-bold text-[var(--md-color-primary)]">
+                            От: {{ m.sender.username }}
+                        </span>
+                        <span class="opacity-60 text-[11px]">{{ m.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    </div>
+                    <div class="text-sm font-semibold mb-2 line-clamp-1">
+                        {{ m.subject }}
+                    </div>
+                    <div class="flex items-center space-x-2 text-[11px]">
+                        <span
+                            class="m3-badge {% if 'RSA' in m.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-[10px]">
+                            {{ m.encryption_type }}
+                        </span>
+                        {% if m.ecp_signature %}
+                        <span class="m3-badge m3-badge-success text-[10px]">
+                            <i class="fa-solid fa-signature text-[9px]"></i>
+                            <span>ЭЦП</span>
+                        </span>
+                        {% endif %}
+                        {% if cached_message_ids and m.id in cached_message_ids %}
+                        <span class="m3-badge m3-badge-success text-[10px] ml-auto">
+                            <i class="fa-solid fa-memory text-[9px]"></i>
+                            <span>В памяти</span>
+                        </span>
+                        {% else %}
+                        <button type="button"
+                            onclick="event.preventDefault(); event.stopPropagation(); CryptoTaskTracker.startDecryption('{{ m.id }}', function() { const el = document.getElementById('msg-cache-status-{{ m.id }}'); if (el) el.outerHTML = '<span class=\'m3-badge m3-badge-success text-[10px] ml-auto\'><i class=\'fa-solid fa-memory text-[9px]\'></i><span>В памяти</span></span>'; });"
+                            id="msg-cache-status-{{ m.id }}"
+                            class="m3-btn-tonal text-[10px] py-0.5 px-2.5 rounded-full ml-auto hover:opacity-90 transition"
+                            title="Запустить дешифрование сообщения">
+                            <i class="fa-solid fa-unlock-keyhole text-[9px]"></i>
+                            <span>Расшифровать</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
             {% else %}
-                <div class="py-12 text-center opacity-60 text-xs flex-grow flex flex-col items-center justify-center">
-                    <i class="fa-solid fa-envelope-open text-2xl mb-2 opacity-50"></i>
-                    <span>Нет сообщений</span>
-                </div>
+            <div class="py-12 text-center opacity-60 text-xs flex-grow flex flex-col items-center justify-center">
+                <i class="fa-solid fa-envelope-open text-2xl mb-2 opacity-50"></i>
+                <span>Нет сообщений</span>
+            </div>
             {% endif %}
         </div>
 
-        <!-- Outbox -->
         <div class="m3-card p-5 flex flex-col">
             <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)] mb-4">
                 <div class="flex items-center space-x-2.5">
@@ -122,40 +123,377 @@
             </div>
 
             {% if sent_messages %}
-                <div class="space-y-3 flex-grow">
-                    {% for m in sent_messages %}
-                        <a href="/messages/{{ m.id }}"
-                           class="block p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] hover:bg-[var(--md-color-surface-container-high)] transition group no-underline">
-                            <div class="flex items-center justify-between text-xs mb-1">
-                                <span class="font-bold text-[var(--md-color-primary)]">
-                                    Кому: {{ m.recipient.username }}
-                                </span>
-                                <span class="opacity-60 text-[11px]">{{ m.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
-                            </div>
-                            <div class="text-sm font-semibold mb-2 line-clamp-1">
-                                {{ m.subject }}
-                            </div>
-                            <div class="flex items-center space-x-2 text-[11px]">
-                                <span class="m3-badge {% if 'RSA' in m.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-[10px]">
-                                    {{ m.encryption_type }}
-                                </span>
-                                {% if m.ecp_signature %}
-                                    <span class="m3-badge m3-badge-success text-[10px]">
-                                        <i class="fa-solid fa-signature text-[9px]"></i>
-                                        <span>ЭЦП</span>
-                                    </span>
-                                {% endif %}
-                            </div>
-                        </a>
-                    {% endfor %}
-                </div>
+            <div class="space-y-3 flex-grow">
+                {% for m in sent_messages %}
+                <a href="/messages/{{ m.id }}"
+                    class="block p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] hover:bg-[var(--md-color-surface-container-high)] transition group no-underline">
+                    <div class="flex items-center justify-between text-xs mb-1">
+                        <span class="font-bold text-[var(--md-color-primary)]">
+                            Кому: {{ m.recipient.username }}
+                        </span>
+                        <span class="opacity-60 text-[11px]">{{ m.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    </div>
+                    <div class="text-sm font-semibold mb-2 line-clamp-1">
+                        {{ m.subject }}
+                    </div>
+                    <div class="flex items-center space-x-2 text-[11px]">
+                        <span
+                            class="m3-badge {% if 'RSA' in m.encryption_type %}m3-badge-secondary{% else %}m3-badge-primary{% endif %} mono text-[10px]">
+                            {{ m.encryption_type }}
+                        </span>
+                        {% if m.ecp_signature %}
+                        <span class="m3-badge m3-badge-success text-[10px]">
+                            <i class="fa-solid fa-signature text-[9px]"></i>
+                            <span>ЭЦП</span>
+                        </span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
             {% else %}
-                <div class="py-12 text-center opacity-60 text-xs flex-grow flex flex-col items-center justify-center">
-                    <i class="fa-solid fa-paper-plane text-2xl mb-2 opacity-50"></i>
-                    <span>Нет сообщений</span>
-                </div>
+            <div class="py-12 text-center opacity-60 text-xs flex-grow flex flex-col items-center justify-center">
+                <i class="fa-solid fa-paper-plane text-2xl mb-2 opacity-50"></i>
+                <span>Нет сообщений</span>
+            </div>
             {% endif %}
         </div>
+    </div>
+</div>
+
+<div class="cm-gmail-only w-full">
+    <div class="gm-workspace">
+        <aside class="gm-sidebar" id="gm-sidebar">
+            {% if user.role != 'guest' %}
+            <button type="button" onclick="openGmailCompose()" class="gm-compose-btn" title="Написать письмо">
+                <i class="fa-solid fa-pencil gm-compose-icon"></i>
+                <span class="gm-compose-label">Написать</span>
+            </button>
+            {% else %}
+            <div class="gm-compose-btn opacity-60 cursor-not-allowed">
+                <i class="fa-solid fa-eye gm-compose-icon"></i>
+                <span class="gm-compose-label">Гостевой режим</span>
+            </div>
+            {% endif %}
+
+            <div class="gm-nav-list">
+                <div class="gm-nav-item active" id="gm-nav-inbox" onclick="switchGmailTab('inbox')">
+                    <div class="gm-nav-lead">
+                        <i class="fa-solid fa-inbox gm-nav-icon"></i>
+                        <span class="gm-nav-text">Входящие</span>
+                    </div>
+                    <span class="gm-nav-badge">{{ received_messages|length }}</span>
+                </div>
+
+                <div class="gm-nav-item" id="gm-nav-sent" onclick="switchGmailTab('sent')">
+                    <div class="gm-nav-lead">
+                        <i class="fa-solid fa-paper-plane gm-nav-icon"></i>
+                        <span class="gm-nav-text">Отправленные</span>
+                    </div>
+                    <span class="gm-nav-badge">{{ sent_messages|length }}</span>
+                </div>
+
+                <a href="/ecp" class="gm-nav-item no-underline">
+                    <div class="gm-nav-lead">
+                        <i class="fa-solid fa-signature gm-nav-icon"></i>
+                        <span class="gm-nav-text">ЭЦП и Ключи</span>
+                    </div>
+                </a>
+
+                <a href="/mailtrap" class="gm-nav-item no-underline">
+                    <div class="gm-nav-lead">
+                        <i class="fa-solid fa-inbox gm-nav-icon"></i>
+                        <span class="gm-nav-text">Сервисная почта</span>
+                    </div>
+                </a>
+
+                {% if user.role == 'admin' %}
+                <a href="/admin" class="gm-nav-item no-underline" style="color: var(--gm-accent-red);">
+                    <div class="gm-nav-lead">
+                        <i class="fa-solid fa-crown gm-nav-icon"></i>
+                        <span class="gm-nav-text">Админ-панель</span>
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="gm-sidebar-section-title">Экспорт архива</div>
+            <div class="flex flex-col gap-1.5 px-2">
+                <a href="/export/my/json" class="gm-quick-btn justify-between py-1.5 px-3 text-xs no-underline"
+                    title="Экспорт моих сообщений в JSON">
+                    <span><i class="fa-solid fa-file-code mr-1.5 text-indigo-400"></i> JSON архив</span>
+                    <i class="fa-solid fa-arrow-down text-[10px] opacity-70"></i>
+                </a>
+                <a href="/export/my/pdf" class="gm-quick-btn justify-between py-1.5 px-3 text-xs no-underline"
+                    title="Экспорт моих сообщений в PDF">
+                    <span><i class="fa-solid fa-file-pdf mr-1.5 text-rose-400"></i> PDF архив</span>
+                    <i class="fa-solid fa-arrow-down text-[10px] opacity-70"></i>
+                </a>
+            </div>
+        </aside>
+
+        <section class="gm-mail-view">
+            <div class="gm-toolbar">
+                <div class="gm-toolbar-left">
+                    <input type="checkbox" onchange="toggleSelectAllGmail(this)"
+                        class="rounded w-4 h-4 cursor-pointer text-blue-600 focus:ring-0" title="Выбрать все">
+                    <button type="button" class="gm-icon-btn" onclick="location.reload()" title="Обновить список писем">
+                        <i class="fa-solid fa-rotate-right text-xs"></i>
+                    </button>
+                    <button type="button" class="gm-quick-btn ml-2" onclick="filterGmailMessages('')">Все</button>
+                    <button type="button" class="gm-quick-btn" onclick="filterGmailMessages('памяти')">В памяти</button>
+                    <button type="button" class="gm-quick-btn" onclick="filterGmailMessages('ЭЦП')">С ЭЦП</button>
+                </div>
+                <div class="gm-toolbar-right">
+                    <span id="gm-list-count" class="font-medium text-xs">{{ received_messages|length }} писем</span>
+                    {% if user.role != 'guest' %}
+                    <a href="/messages/compose" class="gm-quick-btn no-underline hidden sm:inline-flex"
+                        title="Открыть полную страницу создания письма">
+                        <i class="fa-solid fa-up-right-from-square text-[10px]"></i>
+                        <span>Написать на весь экран</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="gm-tabs">
+                <div class="gm-tab active" id="gm-tab-inbox" onclick="switchGmailTab('inbox')">
+                    <i class="fa-solid fa-inbox text-base"></i>
+                    <span>Входящие</span>
+                    <span class="gm-tab-badge">{{ received_messages|length }}</span>
+                </div>
+                <div class="gm-tab" id="gm-tab-sent" onclick="switchGmailTab('sent')">
+                    <i class="fa-solid fa-paper-plane text-base"></i>
+                    <span>Отправленные</span>
+                    <span class="gm-tab-badge">{{ sent_messages|length }}</span>
+                </div>
+            </div>
+
+            <div id="gm-inbox-list" class="gm-message-list">
+                {% if received_messages %}
+                {% for m in received_messages %}
+                <div class="gm-message-row {% if m.id not in cached_message_ids %}unread{% endif %}"
+                    data-search="{{ m.sender.username }} {{ m.subject }} {{ m.encryption_type }} {% if m.ecp_signature %}эцп{% endif %} {% if cached_message_ids and m.id in cached_message_ids %}памяти{% endif %}"
+                    onclick="window.location='/messages/{{ m.id }}'">
+
+                    <div class="gm-row-tools" onclick="event.stopPropagation()">
+                        <input type="checkbox"
+                            class="gm-row-checkbox rounded w-4 h-4 cursor-pointer text-blue-600 focus:ring-0">
+                        <button type="button" id="star-{{ m.id }}" class="gm-star-btn"
+                            onclick="toggleStar('{{ m.id }}', event)" title="Пометить звёздочкой">
+                            <i class="fa-regular fa-star"></i>
+                        </button>
+                    </div>
+
+                    <div class="gm-msg-sender" title="{{ m.sender.username }}">
+                        {{ m.sender.username }}
+                    </div>
+
+                    <div class="gm-msg-content-preview">
+                        <span class="gm-msg-subject">{{ m.subject }}</span>
+                        <span class="gm-msg-snippet">- Нажмите для защищенного чтения сообщения</span>
+                    </div>
+
+                    <div class="gm-msg-badges">
+                        {% if 'RSA' in m.encryption_type %}
+                        <span class="gm-chip gm-chip-blue" title="Асимметричный шифр RSA">{{ m.encryption_type }}</span>
+                        {% else %}
+                        <span class="gm-chip gm-chip-orange" title="Симметричный шифр ГОСТ Кузнечик">Кузнечик</span>
+                        {% endif %}
+
+                        {% if m.ecp_signature %}
+                        <span class="gm-chip gm-chip-green" title="ЭЦП ГОСТ Р 34.10-2012">
+                            <i class="fa-solid fa-signature text-[9px]"></i>
+                            <span>ЭЦП</span>
+                        </span>
+                        {% endif %}
+
+                        {% if cached_message_ids and m.id in cached_message_ids %}
+                        <span id="gm-cache-status-{{ m.id }}" class="gm-chip gm-chip-purple"
+                            title="Расшифровано и готово в оперативной памяти">
+                            <i class="fa-solid fa-memory text-[9px]"></i>
+                            <span>В памяти</span>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="gm-msg-date">
+                        {{ m.created_at.strftime('%d %b') }}
+                    </div>
+
+                    <div class="gm-row-hover-actions" onclick="event.stopPropagation()">
+                        {% if not (cached_message_ids and m.id in cached_message_ids) %}
+                        <button type="button" class="gm-quick-btn"
+                            onclick="event.preventDefault(); event.stopPropagation(); CryptoTaskTracker.startDecryption('{{ m.id }}', function() { location.reload(); });"
+                            title="Запустить дешифрование">
+                            <i class="fa-solid fa-unlock-keyhole text-[10px]"></i>
+                            <span>Расшифровать</span>
+                        </button>
+                        {% endif %}
+                        <a href="/messages/{{ m.id }}/export/pdf" target="_blank" class="gm-quick-btn no-underline"
+                            title="Экспорт в PDF">
+                            <i class="fa-solid fa-file-pdf text-[11px]"></i>
+                        </a>
+                        <a href="/messages/{{ m.id }}" class="gm-quick-btn no-underline" title="Открыть письмо">
+                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="gm-empty-state">
+                    <i class="fa-solid fa-inbox gm-empty-icon"></i>
+                    <div class="text-base font-semibold mb-1 text-[var(--gm-text-main)]">В папке «Входящие» нет
+                        сообщений</div>
+                    <div class="text-xs opacity-75">Новые зашифрованные письма появятся здесь.</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div id="gm-sent-list" class="gm-message-list" style="display: none;">
+                {% if sent_messages %}
+                {% for m in sent_messages %}
+                <div class="gm-message-row"
+                    data-search="{{ m.recipient.username }} {{ m.subject }} {{ m.encryption_type }} {% if m.ecp_signature %}эцп{% endif %}"
+                    onclick="window.location='/messages/{{ m.id }}'">
+
+                    <div class="gm-row-tools" onclick="event.stopPropagation()">
+                        <input type="checkbox"
+                            class="gm-row-checkbox rounded w-4 h-4 cursor-pointer text-blue-600 focus:ring-0">
+                        <button type="button" id="star-sent-{{ m.id }}" class="gm-star-btn"
+                            onclick="toggleStar('sent-{{ m.id }}', event)" title="Пометить звёздочкой">
+                            <i class="fa-regular fa-star"></i>
+                        </button>
+                    </div>
+
+                    <div class="gm-msg-sender" title="Кому: {{ m.recipient.username }}">
+                        Кому: {{ m.recipient.username }}
+                    </div>
+
+                    <div class="gm-msg-content-preview">
+                        <span class="gm-msg-subject">{{ m.subject }}</span>
+                        <span class="gm-msg-snippet">- Отправленное зашифрованное сообщение</span>
+                    </div>
+
+                    <div class="gm-msg-badges">
+                        {% if 'RSA' in m.encryption_type %}
+                        <span class="gm-chip gm-chip-blue">{{ m.encryption_type }}</span>
+                        {% else %}
+                        <span class="gm-chip gm-chip-orange">Кузнечик</span>
+                        {% endif %}
+
+                        {% if m.ecp_signature %}
+                        <span class="gm-chip gm-chip-green">
+                            <i class="fa-solid fa-signature text-[9px]"></i>
+                            <span>ЭЦП</span>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="gm-msg-date">
+                        {{ m.created_at.strftime('%d %b') }}
+                    </div>
+
+                    <div class="gm-row-hover-actions" onclick="event.stopPropagation()">
+                        <a href="/messages/{{ m.id }}/export/pdf" target="_blank" class="gm-quick-btn no-underline"
+                            title="Экспорт в PDF">
+                            <i class="fa-solid fa-file-pdf text-[11px]"></i>
+                        </a>
+                        <a href="/messages/{{ m.id }}" class="gm-quick-btn no-underline" title="Открыть письмо">
+                            <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="gm-empty-state">
+                    <i class="fa-solid fa-paper-plane gm-empty-icon"></i>
+                    <div class="text-base font-semibold mb-1 text-[var(--gm-text-main)]">В папке «Отправленные» нет
+                        сообщений</div>
+                    <div class="text-xs opacity-75">Отправленные вами защищенные письма отобразятся здесь.</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <div id="gm-docked-compose" class="gm-docked-compose" style="display: none;">
+        <div class="gm-compose-header" onclick="minimizeGmailCompose()">
+            <div class="gm-compose-title">
+                <i class="fa-solid fa-pencil text-xs mr-2 text-[var(--gm-accent-blue)]"></i>
+                <span>Новое сообщение</span>
+            </div>
+            <div class="flex items-center space-x-1" onclick="event.stopPropagation()">
+                <button type="button" class="gm-icon-btn w-7 h-7 text-xs" onclick="minimizeGmailCompose()"
+                    title="Свернуть / Развернуть">
+                    <i class="fa-solid fa-minus text-xs"></i>
+                </button>
+                <a href="/messages/compose" class="gm-icon-btn w-7 h-7 text-xs no-underline"
+                    title="Развернуть во весь экран">
+                    <i class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
+                </a>
+                <button type="button" class="gm-icon-btn w-7 h-7 text-xs hover:text-red-500"
+                    onclick="closeGmailCompose()" title="Закрыть">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <form method="POST" action="/messages/compose" class="flex flex-col flex-1 overflow-hidden m-0 p-0">
+            <div class="gm-compose-body">
+                <div class="gm-compose-field">
+                    <label for="gm-recipient">Кому:</label>
+                    <select name="recipient_id" id="gm-recipient" required class="gm-compose-input cursor-pointer">
+                        <option value="" disabled selected>Выберите получателя...</option>
+                        {% for u in potential_recipients %}
+                        <option value="{{ u.id }}">{{ u.username }} ({{ u.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="gm-compose-field">
+                    <label for="gm-subject">Тема:</label>
+                    <input type="text" name="subject" id="gm-subject" required placeholder="Тема сообщения..."
+                        class="gm-compose-input">
+                </div>
+
+                <div class="gm-compose-field py-2">
+                    <label>Шифр:</label>
+                    <div class="flex items-center space-x-4 text-xs">
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="encryption_type" value="RSA" checked
+                                onchange="document.getElementById('gm-kuz-pass-box').style.display='none'">
+                            <span class="font-semibold text-[var(--gm-accent-blue)]">RSA</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="encryption_type" value="KUZNYECHIK-256"
+                                onchange="document.getElementById('gm-kuz-pass-box').style.display='flex'">
+                            <span class="font-semibold text-[var(--gm-accent-yellow)]">Кузнечик (ГОСТ)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="gm-kuz-pass-box" class="gm-compose-field" style="display: none;">
+                    <label for="gm-kuz-pass">Пароль:</label>
+                    <input type="text" name="kuz_passphrase" id="gm-kuz-pass"
+                        placeholder="Кодовая фраза (необязательно)" class="gm-compose-input font-mono text-xs">
+                </div>
+
+                <textarea name="body" required placeholder="Введите текст сообщения..."
+                    class="gm-compose-textarea"></textarea>
+            </div>
+
+            <div class="gm-compose-footer">
+                <button type="submit" class="gm-send-btn">
+                    <span>Отправить</span>
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+                <button type="button" class="gm-icon-btn hover:text-red-500" onclick="closeGmailCompose()"
+                    title="Удалить черновик">
+                    <i class="fa-solid fa-trash-can text-sm"></i>
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}

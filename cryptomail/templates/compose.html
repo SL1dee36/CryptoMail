@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Новое сообщение — CryptoMail{% endblock %}
+{% block title %}CryptoMail{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto my-6">
@@ -26,7 +26,6 @@
         {% endif %}
 
         <form id="compose-form" method="POST" action="/messages/compose" class="space-y-5">
-            <!-- Recipient -->
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Получатель</label>
                 <select name="recipient_id" required class="m3-select">
@@ -37,17 +36,16 @@
                 </select>
             </div>
 
-            <!-- Subject -->
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Тема</label>
                 <input type="text" name="subject" required placeholder="Тема сообщения..." class="m3-input">
             </div>
 
-            <!-- Encryption Algorithm Selector -->
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider mb-2 opacity-80">Шифрование</label>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <label class="relative flex p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] cursor-pointer hover:border-[var(--md-color-primary)] transition">
+                    <label
+                        class="relative flex p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] cursor-pointer hover:border-[var(--md-color-primary)] transition">
                         <input type="radio" name="encryption_type" value="RSA" checked class="mt-0.5"
                             onclick="document.getElementById('kuz-passphrase-block').classList.add('hidden')">
                         <div class="ml-2.5">
@@ -56,7 +54,8 @@
                         </div>
                     </label>
 
-                    <label class="relative flex p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] cursor-pointer hover:border-[var(--md-color-primary)] transition">
+                    <label
+                        class="relative flex p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] cursor-pointer hover:border-[var(--md-color-primary)] transition">
                         <input type="radio" name="encryption_type" value="KUZNYECHIK-256" class="mt-0.5"
                             onclick="document.getElementById('kuz-passphrase-block').classList.remove('hidden')">
                         <div class="ml-2.5">
@@ -67,18 +66,19 @@
                 </div>
             </div>
 
-            <!-- Kuznyechik passphrase (visible only when KUZNYECHIK is selected) -->
-            <div id="kuz-passphrase-block" class="hidden p-4 rounded-2xl border border-[var(--md-color-warning)] bg-[var(--md-color-surface-container-low)] space-y-2">
-                <label class="block text-xs font-semibold uppercase tracking-wider opacity-80">Кодовая фраза (необязательно)</label>
+            <div id="kuz-passphrase-block"
+                class="hidden p-4 rounded-2xl border border-[var(--md-color-warning)] bg-[var(--md-color-surface-container-low)] space-y-2">
+                <label class="block text-xs font-semibold uppercase tracking-wider opacity-80">Кодовая фраза
+                    (необязательно)</label>
                 <input type="text" name="kuz_passphrase" id="kuz_passphrase"
-                    placeholder="Оставьте пустым для персонального ключа..."
-                    class="m3-input font-mono text-xs">
+                    placeholder="Оставьте пустым для персонального ключа..." class="m3-input font-mono text-xs">
             </div>
 
-            <!-- Message Body -->
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Текст сообщения</label>
-                <textarea name="body" rows="6" required placeholder="Введите текст сообщения..." class="m3-textarea font-sans"></textarea>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Текст
+                    сообщения</label>
+                <textarea name="body" rows="6" required placeholder="Введите текст сообщения..."
+                    class="m3-textarea font-sans"></textarea>
             </div>
 
             <button type="submit" class="w-full py-3 m3-btn-filled text-sm">

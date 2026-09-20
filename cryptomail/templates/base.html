@@ -4,43 +4,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CryptoMail — Защищенная система сообщений{% endblock %}</title>
-    <!-- Material 3 Design System & Theme Engine -->
+    <title>{% block title %}CryptoMail{% endblock %}</title>
+    <script>
+        (function () {
+            try {
+                var l = localStorage.getItem('cryptomail_layout');
+                if (!l) {
+                    var m = document.cookie.match(/(?:^| )cryptomail_layout=([^;]+)/);
+                    if (m && (m[1] === 'gmail' || m[1] === 'classic')) l = m[1];
+                }
+                if (l === 'gmail') {
+                    document.documentElement.setAttribute('data-layout', 'gmail');
+                } else {
+                    document.documentElement.setAttribute('data-layout', 'classic');
+                }
+            } catch (e) { }
+        })();
+    </script>
     <link rel="stylesheet" href="/templates/style/material3.css">
+    <link rel="stylesheet" href="/templates/style/gmail.css">
     <script src="/templates/style/theme.js"></script>
+    <script src="/templates/style/layout.js"></script>
     <script src="/templates/style/crypto_tracker.js"></script>
-    <!-- Tailwind CSS (utility base) & FontAwesome Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body class="min-h-screen flex flex-col font-sans antialiased m3-surface">
-    <!-- Material 3 Expressive Top App Bar -->
-    <nav class="m3-appbar sticky top-0 z-50">
+    <nav class="m3-appbar sticky top-0 z-50 cm-classic-only">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center space-x-3">
                     <a href="/"
                         class="flex items-center space-x-2.5 text-lg font-bold tracking-tight no-underline hover:opacity-85 transition">
-                        <div class="w-9 h-9 rounded-xl flex items-center justify-center m3-badge-primary">
-                            <i class="fa-solid fa-shield-halved text-base"></i>
+                        <div class="cm-ecp-logo-badge">
+                            <i class="fa-solid fa-signature cm-ecp-gradient-icon"></i>
                         </div>
                         <span class="text-base font-bold">CryptoMail</span>
                     </a>
                 </div>
 
-                <div class="flex items-center space-x-2.5">
-                    <!-- Light / Dark Theme Switcher Button -->
+                <div class="flex items-center space-x-2 sm:space-x-2.5">
+                    <button type="button" onclick="toggleLayout()"
+                        class="m3-btn-tonal text-xs py-1.5 px-3 flex items-center space-x-1.5 border border-indigo-400/30"
+                        title="Переключить на современный интерфейс в стиле Gmail">
+                        <i class="fa-solid fa-envelope-open-text text-indigo-500"></i>
+                        <span id="layout-toggle-label" class="font-semibold">Gmail стиль</span>
+                    </button>
+
                     <button type="button" onclick="toggleTheme()" class="m3-btn-outlined text-xs py-1.5 px-3"
                         title="Переключить тему (Светлая / Тёмная)">
                         <i id="theme-icon" class="fa-solid fa-moon"></i>
                         <span id="theme-text" class="hidden sm:inline text-xs font-semibold">Тема</span>
                     </button>
 
-                    <!-- MailTrap Quick Access Button -->
-                    <a href="/mailtrap" class="m3-btn-tonal text-xs py-1.5 px-3">
+                    <a href="/mailtrap" class="m3-btn-tonal text-xs py-1.5 px-3" title="Сервисная почта">
                         <i class="fa-solid fa-inbox"></i>
-                        <span>Почта 3FA</span>
+                        <span>Сервисная почта</span>
                     </a>
 
                     {% if user %}
@@ -85,17 +105,107 @@
         </div>
     </nav>
 
-    <!-- Main Content Area -->
-    <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+    <header class="gm-header cm-gmail-only">
+        <div class="gm-brand-group">
+            {% if request.url.path in ['/inbox', '/'] or active_page == 'inbox' %}
+            <button type="button" class="gm-icon-btn" onclick="toggleGmailSidebar()" title="Главное меню">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            {% endif %}
+            <a href="/" class="gm-logo">
+                <div class="cm-ecp-logo-badge">
+                    <i class="fa-solid fa-signature cm-ecp-gradient-icon"></i>
+                </div>
+                <span>CryptoMail</span>
+            </a>
+        </div>
+
+        {% if request.url.path in ['/inbox', '/'] or active_page == 'inbox' %}
+        <div class="gm-search-container">
+            <div class="gm-search-bar">
+                <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                <input type="text" id="gm-search-input" class="gm-search-input"
+                    placeholder="Поиск в почте (по теме, отправителю, тексту)..."
+                    oninput="filterGmailMessages(this.value)">
+                <button type="button" class="gm-icon-btn"
+                    onclick="document.getElementById('gm-search-input').value=''; filterGmailMessages('');"
+                    title="Очистить поиск">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div class="flex-1"></div>
+        {% endif %}
+
+        <div class="gm-header-actions">
+            <button type="button" onclick="toggleTheme()" class="gm-icon-btn" title="Сменить тему">
+                <i id="gm-theme-icon" class="fa-solid fa-moon"></i>
+            </button>
+
+            <a href="/mailtrap" class="gm-icon-btn" title="Сервисная почта">
+                <i class="fa-solid fa-inbox"></i>
+            </a>
+
+            <a href="/ecp" class="gm-icon-btn" title="Электронная цифровая подпись (ЭЦП)">
+                <i class="fa-solid fa-signature"></i>
+            </a>
+
+            {% if user %}
+            {% if user.role == 'admin' %}
+            <a href="/admin" class="gm-icon-btn" title="Панель администратора" style="color: var(--gm-accent-red);">
+                <i class="fa-solid fa-crown"></i>
+            </a>
+            {% endif %}
+
+            <div class="relative">
+                <div id="gm-user-avatar" class="gm-avatar" onclick="toggleUserDropdown(event)"
+                    title="{{ user.username }} ({{ user.role_title_ru }})">
+                    {{ user.username[0]|upper }}
+                </div>
+
+                <div id="gm-user-dropdown" class="gm-user-dropdown">
+                    <div
+                        class="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-xl font-bold mb-2">
+                        {{ user.username[0]|upper }}
+                    </div>
+                    <div class="font-bold text-sm">{{ user.username }}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mb-2">{{ user.email }}</div>
+                    <span
+                        class="m3-badge {% if user.role == 'admin' %}m3-badge-error{% elif user.role == 'user' %}m3-badge-success{% else %}m3-badge-warning{% endif %} mb-3 text-xs">
+                        {{ user.role_title_ru }}
+                    </span>
+                    <div class="w-full border-t border-[var(--gm-border-light)] pt-3 flex flex-col gap-2">
+                        <a href="/ecp" class="m3-btn-tonal text-xs py-1.5 w-full text-center no-underline">
+                            <i class="fa-solid fa-key mr-1.5"></i> Мои ключи и ЭЦП
+                        </a>
+                        <a href="/logout"
+                            class="m3-btn-outlined text-xs py-1.5 w-full text-center hover:text-red-500 no-underline">
+                            <i class="fa-solid fa-right-from-bracket mr-1.5"></i> Выйти из аккаунта
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <a href="/login" class="gm-switcher-btn">Вход</a>
+            <a href="/register" class="gm-switcher-btn"
+                style="background-color: var(--gm-accent-blue); color: white;">Регистрация</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="flex-grow w-full transition-all duration-200" id="main-content-wrapper">
         {% if alert_message %}
-        <div class="mb-6 p-4 rounded-2xl border flex items-center justify-between
-                {% if alert_type == 'error' %}m3-badge-error
-                {% elif alert_type == 'success' %}m3-badge-success
-                {% else %}m3-badge-primary{% endif %}">
-            <div class="flex items-center space-x-3 text-xs font-semibold">
-                <i
-                    class="fa-solid {% if alert_type == 'error' %}fa-circle-exclamation{% elif alert_type == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} text-base"></i>
-                <span>{{ alert_message }}</span>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+            <div class="mb-4 p-4 rounded-2xl border flex items-center justify-between
+                    {% if alert_type == 'error' %}m3-badge-error
+                    {% elif alert_type == 'success' %}m3-badge-success
+                    {% else %}m3-badge-primary{% endif %}">
+                <div class="flex items-center space-x-3 text-xs font-semibold">
+                    <i
+                        class="fa-solid {% if alert_type == 'error' %}fa-circle-exclamation{% elif alert_type == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} text-base"></i>
+                    <span>{{ alert_message }}</span>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -103,21 +213,13 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <!-- <footer class="m3-appbar border-t py-3 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 text-center text-xs opacity-60">
-            CryptoMail
-        </div>
-    </footer> -->
-
-    <!-- Top Floating Toast Notification (Appears upon completion) -->
     <div id="crypto-top-toast"
         class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none transition-all duration-300 transform opacity-0 -translate-y-4 font-sans"
         style="display: none;">
         <div
-            class="m3-card px-5 py-3 rounded-full shadow-2xl border border-emerald-500/50 bg-emerald-950/95 dark:bg-emerald-900/95 text-white flex items-center space-x-3 pointer-events-auto backdrop-blur-md">
+            class="m3-card px-5 py-3 rounded-full border border-emerald-500/50 bg-emerald-950/95 dark:bg-emerald-900/95 text-white flex items-center space-x-3 pointer-events-auto backdrop-blur-md">
             <div
-                class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold shadow-sm">
+                class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold">
                 <i class="fa-solid fa-check"></i>
             </div>
             <div class="text-xs pr-1">
@@ -134,9 +236,8 @@
     <div id="crypto-dock" class="fixed bottom-5 right-5 z-[9999] transition-all duration-300 ease-in-out font-sans"
         style="display: none; opacity: 0; transform: translateY(16px);">
         <div
-            class="m3-card shadow-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] rounded-2xl overflow-hidden w-[350px] sm:w-[380px] max-w-[calc(100vw-2rem)]">
+            class="m3-card border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] rounded-2xl overflow-hidden w-[350px] sm:w-[380px] max-w-[calc(100vw-2rem)]">
 
-            <!-- Dock Header (Click to expand / collapse) -->
             <div id="crypto-dock-header"
                 class="px-4 py-3 bg-[var(--md-color-surface-container)] border-b border-[var(--md-color-outline-variant)] flex items-center justify-between cursor-pointer select-none hover:bg-[var(--md-color-surface-container-high)] transition"
                 title="Нажмите, чтобы свернуть / развернуть подробности">
@@ -166,9 +267,7 @@
                 </div>
             </div>
 
-            <!-- Dock Body (Detailed live metrics) -->
             <div id="crypto-dock-body" class="p-4 space-y-3.5">
-                <!-- Progress Bar & Stage Status -->
                 <div>
                     <div class="flex justify-between items-center text-[11px] font-semibold mb-1 opacity-80">
                         <span id="crypto-stage-label" class="truncate pr-2">Инициализация...</span>
@@ -181,9 +280,7 @@
                     </div>
                 </div>
 
-                <!-- Metrics Grid: Iterations, Candidates, Stopwatch, Algorithm -->
                 <div class="grid grid-cols-2 gap-2 text-xs">
-                    <!-- Iterations -->
                     <div
                         class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
@@ -197,7 +294,6 @@
                         </div>
                     </div>
 
-                    <!-- Candidates Tested -->
                     <div
                         class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
@@ -209,7 +305,6 @@
                         </div>
                     </div>
 
-                    <!-- Live Stopwatch Timer -->
                     <div
                         class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
@@ -221,7 +316,6 @@
                         </div>
                     </div>
 
-                    <!-- Algorithm -->
                     <div
                         class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
@@ -235,7 +329,6 @@
                     </div>
                 </div>
 
-                <!-- Completed Action Buttons (Go to Message & Close Panel) -->
                 <div id="crypto-dock-actions"
                     class="pt-2 border-t border-[var(--md-color-outline-variant)] flex items-center space-x-2"
                     style="display: none;">

@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Административная панель — CryptoMail{% endblock %}
+{% block title %}CryptoMail{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Admin Header & Global Export -->
     <div class="m3-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
             <div class="flex items-center space-x-3">
@@ -15,8 +14,8 @@
             </div>
         </div>
 
-        <!-- Global Export Buttons -->
-        <div class="flex items-center space-x-2 p-1.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
+        <div
+            class="flex items-center space-x-2 p-1.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
             <a href="/admin/export/json" class="m3-btn-tonal text-xs py-1.5 px-3">
                 <i class="fa-solid fa-file-code"></i>
                 <span>JSON</span>
@@ -28,7 +27,6 @@
         </div>
     </div>
 
-    <!-- Users Table -->
     <div class="m3-card p-6 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-[var(--md-color-outline-variant)]">
             <h2 class="text-base font-bold flex items-center space-x-2">
@@ -61,8 +59,10 @@
                         <td>{{ u.email }}</td>
                         <td>
                             <form method="POST" action="/admin/users/{{ u.id }}/role" class="inline-flex items-center">
-                                <select name="role" onchange="this.form.submit()" class="m3-select py-1 px-2.5 text-xs w-auto">
-                                    <option value="user" {% if u.role=='user' %}selected{% endif %}>Пользователь</option>
+                                <select name="role" onchange="this.form.submit()"
+                                    class="m3-select py-1 px-2.5 text-xs w-auto">
+                                    <option value="user" {% if u.role=='user' %}selected{% endif %}>Пользователь
+                                    </option>
                                     <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Админ</option>
                                     <option value="guest" {% if u.role=='guest' %}selected{% endif %}>Гость</option>
                                 </select>
@@ -97,10 +97,8 @@
                         </td>
                         <td class="text-right">
                             <div class="inline-flex items-center space-x-2">
-                                <!-- Reset Password Modal Button -->
                                 <button type="button" onclick="openResetModal('{{ u.id }}', '{{ u.username }}')"
-                                    class="m3-btn-tonal text-xs py-1 px-2.5"
-                                    title="Сбросить пароль пользователя">
+                                    class="m3-btn-tonal text-xs py-1 px-2.5" title="Сбросить пароль пользователя">
                                     <i class="fa-solid fa-key"></i>
                                     <span>Сброс</span>
                                 </button>
@@ -108,8 +106,7 @@
                                 {% if u.id != current_admin_id %}
                                 <form method="POST" action="/admin/users/{{ u.id }}/delete" class="inline"
                                     onsubmit="return confirm('Удалить пользователя {{ u.username }} и все связанные данные?')">
-                                    <button type="submit"
-                                        class="m3-btn-danger text-xs py-1 px-2.5"
+                                    <button type="submit" class="m3-btn-danger text-xs py-1 px-2.5"
                                         title="Удалить пользователя">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
@@ -125,7 +122,6 @@
     </div>
 </div>
 
-<!-- Modal for Admin Password Reset -->
 <div id="resetModal"
     class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="m3-card max-w-sm w-full p-6 space-y-4">
@@ -141,15 +137,14 @@
                 <label class="block font-semibold mb-1 opacity-80">Новый пароль</label>
                 <input type="text" name="new_password" id="modalNewPassword" required value="NewSecurePass123!"
                     class="m3-input mono">
-                <p class="text-[10px] opacity-60 mt-1">Минимум 8 символов, заглавные/строчные буквы, цифра, спецсимвол</p>
+                <p class="text-[10px] opacity-60 mt-1">Минимум 8 символов, заглавные/строчные буквы, цифра, спецсимвол
+                </p>
             </div>
             <div class="flex space-x-2 pt-2">
-                <button type="button" onclick="closeResetModal()"
-                    class="flex-1 py-2 m3-btn-outlined text-xs">
+                <button type="button" onclick="closeResetModal()" class="flex-1 py-2 m3-btn-outlined text-xs">
                     Отмена
                 </button>
-                <button type="submit"
-                    class="flex-1 py-2 m3-btn-filled text-xs">
+                <button type="submit" class="flex-1 py-2 m3-btn-filled text-xs">
                     Применить
                 </button>
             </div>

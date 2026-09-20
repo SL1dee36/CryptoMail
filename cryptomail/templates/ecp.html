@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Моя ЭЦП и Сертификат — CryptoMail{% endblock %}
+{% block title %}CryptoMail{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto my-6 space-y-6">
@@ -11,14 +11,13 @@
         </h1>
         <form method="POST" action="/ecp/reissue">
             <button type="submit" onclick="return confirm('Перевыпустить сертификат ЭЦП?')"
-                    class="m3-btn-outlined text-xs py-1.5 px-3">
+                class="m3-btn-outlined text-xs py-1.5 px-3">
                 <i class="fa-solid fa-rotate"></i>
                 <span>Перевыпустить ЭЦП</span>
             </button>
         </form>
     </div>
 
-    <!-- Certificate Card -->
     <div class="m3-card p-6 space-y-5">
         <div class="flex items-center justify-between pb-4 border-b border-[var(--md-color-outline-variant)]">
             <div class="flex items-center space-x-3">
@@ -34,37 +33,43 @@
 
         {% if cert_dict %}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+            <div
+                class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
                 <span class="opacity-60 block">Владелец:</span>
-                <span class="font-bold text-sm text-[var(--md-color-primary)]">{{ cert_dict.subject.common_name }}</span>
+                <span class="font-bold text-sm text-[var(--md-color-primary)]">{{ cert_dict.subject.common_name
+                    }}</span>
             </div>
 
-            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+            <div
+                class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
                 <span class="opacity-60 block">Издатель:</span>
-                <span class="font-bold text-sm text-[var(--md-color-tertiary)]">{{ cert_dict.issuer.common_name }}</span>
+                <span class="font-bold text-sm text-[var(--md-color-tertiary)]">{{ cert_dict.issuer.common_name
+                    }}</span>
             </div>
 
-            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+            <div
+                class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
                 <span class="opacity-60 block">Серийный номер:</span>
-                <span class="mono font-bold break-all text-[var(--md-color-secondary)]">{{ cert_dict.serial_number }}</span>
+                <span class="mono font-bold break-all text-[var(--md-color-secondary)]">{{ cert_dict.serial_number
+                    }}</span>
             </div>
 
-            <div class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
+            <div
+                class="p-3.5 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] space-y-1">
                 <span class="opacity-60 block">Срок действия:</span>
                 <span>С {{ cert_dict.valid_from[:10] }} по {{ cert_dict.valid_to[:10] }}</span>
             </div>
         </div>
 
-        <!-- Signature of Certificate -->
         <div>
             <span class="text-xs font-semibold block mb-1 opacity-80">Подпись сертификата:</span>
-            <div class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] text-[var(--md-color-tertiary)] break-all select-all">
+            <div
+                class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] text-[var(--md-color-tertiary)] break-all select-all">
                 {{ cert_dict.signature }}
             </div>
         </div>
         {% endif %}
 
-        <!-- Public Key PEM & Download -->
         <div>
             <div class="flex items-center justify-between mb-1.5">
                 <span class="text-xs font-semibold opacity-80">Открытый ключ ЭЦП:</span>
@@ -81,42 +86,42 @@
                     {% endif %}
                 </div>
             </div>
-            <pre class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] overflow-x-auto select-all max-h-36">{{ user.ecp_public_key }}</pre>
+            <pre
+                class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] overflow-x-auto select-all max-h-36">{{ user.ecp_public_key }}</pre>
         </div>
     </div>
 
-    <!-- RSA Encryption Key Management Card -->
     <div class="m3-card p-6 space-y-5">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[var(--md-color-outline-variant)] gap-3">
+        <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[var(--md-color-outline-variant)] gap-3">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-xl m3-badge-primary flex items-center justify-center text-lg">
                     <i class="fa-solid fa-key"></i>
                 </div>
                 <div class="flex items-center space-x-2">
                     <h3 class="text-base font-bold">Ключи RSA</h3>
-                    <span class="m3-badge {% if rsa_key_size >= 32768 %}m3-badge-secondary{% elif rsa_key_size >= 4096 %}m3-badge-primary{% else %}m3-badge-neutral{% endif %} mono text-xs">
+                    <span
+                        class="m3-badge {% if rsa_key_size >= 32768 %}m3-badge-secondary{% elif rsa_key_size >= 4096 %}m3-badge-primary{% else %}m3-badge-neutral{% endif %} mono text-xs">
                         {% if rsa_key_size >= 32768 %}RSA-32K{% else %}RSA-{{ rsa_key_size }}{% endif %}
                     </span>
                 </div>
             </div>
 
-            <!-- Reissue RSA with Key Size Selector Form -->
             <form method="POST" action="/ecp/rsa/reissue" class="flex items-center space-x-2">
                 <select name="key_size" class="m3-select py-1 px-2.5 text-xs w-auto">
-                    <option value="4096" {% if rsa_key_size == 4096 %}selected{% endif %}>RSA-4096</option>
-                    <option value="2048" {% if rsa_key_size == 2048 %}selected{% endif %}>RSA-2048</option>
-                    <option value="8192" {% if rsa_key_size == 8192 %}selected{% endif %}>RSA-8192</option>
-                    <option value="32768" {% if rsa_key_size >= 32768 %}selected{% endif %}>RSA-32K (32768 бит)</option>
+                    <option value="4096" {% if rsa_key_size==4096 %}selected{% endif %}>RSA-4096</option>
+                    <option value="2048" {% if rsa_key_size==2048 %}selected{% endif %}>RSA-2048</option>
+                    <option value="8192" {% if rsa_key_size==8192 %}selected{% endif %}>RSA-8192</option>
+                    <option value="32768" {% if rsa_key_size>= 32768 %}selected{% endif %}>RSA-32K (32768 бит)</option>
                 </select>
                 <button type="submit" onclick="return confirm('Сгенерировать новую ключевую пару RSA?')"
-                        class="m3-btn-filled text-xs py-1.5 px-3">
+                    class="m3-btn-filled text-xs py-1.5 px-3">
                     <i class="fa-solid fa-arrows-rotate"></i>
                     <span>Обновить</span>
                 </button>
             </form>
         </div>
 
-        <!-- RSA Public Key PEM & OpenSSL Download Buttons -->
         <div>
             <div class="flex items-center justify-between mb-1.5">
                 <span class="text-xs font-semibold opacity-80">Открытый ключ RSA:</span>
@@ -131,7 +136,8 @@
                     </a>
                 </div>
             </div>
-            <pre class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] overflow-x-auto select-all max-h-40">{{ user.rsa_public_key }}</pre>
+            <pre
+                class="p-3 bg-[var(--md-color-surface-container-highest)] rounded-xl border border-[var(--md-color-outline-variant)] mono text-[11px] overflow-x-auto select-all max-h-40">{{ user.rsa_public_key }}</pre>
         </div>
     </div>
 </div>

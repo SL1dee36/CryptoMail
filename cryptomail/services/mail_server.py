@@ -112,18 +112,29 @@ class LocalSMTPServer:
         else:
             body = parsed.get_content()
 
-        # Extract 6-digit OTP code if present in body
         otp_match = re.search(r"\b(\d{6})\b", body)
         otp_code = otp_match.group(1) if otp_match else None
 
+        clean_rcpt = [r.strip().strip("<>").strip() for r in rcpt_to if r.strip()]
+        clean_sender = (mail_from or "system@cryptomail.local").strip().strip("<>").strip()
+        body_norm = body.strip()
+
+        for ex in RECEIVED_EMAILS:
+            ex_rcpt = [r.strip().strip("<>").strip().lower() for r in ex.get("recipients", [])]
+            clean_rcpt_lower = [r.lower() for r in clean_rcpt]
+            if any(r in ex_rcpt for r in clean_rcpt_lower) and ex.get("subject") == subject:
+                if (otp_code and ex.get("otp_code") == otp_code) or ex.get("body", "").strip() == body_norm:
+                    logger.debug(f"[SMTP] Duplicate message detected for {clean_rcpt}: {subject}")
+                    return
+
         item = {
             "id": len(RECEIVED_EMAILS) + 1,
-            "sender": mail_from or "system@cryptomail.local",
-            "recipients": rcpt_to,
-            "to": rcpt_to[0] if rcpt_to else "",
-            "recipient": rcpt_to[0] if rcpt_to else "",
+            "sender": clean_sender,
+            "recipients": clean_rcpt,
+            "to": clean_rcpt[0] if clean_rcpt else "",
+            "recipient": clean_rcpt[0] if clean_rcpt else "",
             "subject": subject,
-            "body": body,
+            "body": body_norm,
             "otp_code": otp_code,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
             "raw": raw_email,
@@ -131,7 +142,7 @@ class LocalSMTPServer:
         RECEIVED_EMAILS.insert(0, item)
         if len(RECEIVED_EMAILS) > MAX_STORED_EMAILS:
             RECEIVED_EMAILS.pop()
-        logger.info(f"[SMTP] Received email for {rcpt_to}: {subject}, OTP: {otp_code}")
+        logger.info(f"[SMTP] Received email for {clean_rcpt}: {subject}, OTP: {otp_code}")
 
     async def start(self):
         loop = asyncio.get_running_loop()
@@ -154,56 +165,77 @@ class LocalSMTPServer:
             logger.info("Local SMTP server stopped.")
 
 
-# Singleton SMTP Server instance
 smtp_server = LocalSMTPServer()
 
 
 def send_system_email(to_email: str, subject: str, body: str, host: str = "127.0.0.1", port: int = 1025) -> bool:
-    """
-    Sends an email using the local SMTP server.
-    Also ensures the local in-memory store has a copy so test callers or same-process handlers can access it.
-    """
     msg = EmailMessage()
     msg["From"] = "security@cryptomail.local"
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.set_content(body)
 
-    try:
-        with smtplib.SMTP(host, port, timeout=0.2) as client:
-            client.send_message(msg)
-    except Exception as e:
-        logger.warning(f"Direct SMTP send failed ({e}), recording directly to mail inbox.")
-
-    # Record to in-memory store for local process visibility
+    clean_email = to_email.strip().strip("<>").strip()
+    body_norm = body.strip()
     otp_match = re.search(r"\b(\d{6})\b", body)
     otp_code = otp_match.group(1) if otp_match else None
-    item = {
-        "id": len(RECEIVED_EMAILS) + 1,
-        "sender": "security@cryptomail.local",
-        "recipients": [to_email],
-        "to": to_email,
-        "recipient": to_email,
-        "subject": subject,
-        "body": body,
-        "otp_code": otp_code,
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "raw": msg.as_string(),
-    }
-    if not any(e.get("body") == body and e.get("recipients") == [to_email] for e in RECEIVED_EMAILS):
+
+    already_in_store = False
+    for ex in RECEIVED_EMAILS:
+        ex_rcpt = [r.strip().strip("<>").strip().lower() for r in ex.get("recipients", [])]
+        if clean_email.lower() in ex_rcpt and ex.get("subject") == subject:
+            if (otp_code and ex.get("otp_code") == otp_code) or ex.get("body", "").strip() == body_norm:
+                already_in_store = True
+                break
+
+    if not already_in_store:
+        item = {
+            "id": len(RECEIVED_EMAILS) + 1,
+            "sender": "security@cryptomail.local",
+            "recipients": [clean_email],
+            "to": clean_email,
+            "recipient": clean_email,
+            "subject": subject,
+            "body": body_norm,
+            "otp_code": otp_code,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "raw": msg.as_string(),
+        }
         RECEIVED_EMAILS.insert(0, item)
+        if len(RECEIVED_EMAILS) > MAX_STORED_EMAILS:
+            RECEIVED_EMAILS.pop()
+
+    try:
+        with smtplib.SMTP(host, port, timeout=0.5) as client:
+            client.send_message(msg)
+    except Exception as e:
+        logger.warning(f"Direct SMTP send failed ({e}), saved locally to mail inbox.")
+
     return True
 
 
 def get_latest_email_for(recipient: str) -> Optional[Dict[str, Any]]:
-    for item in RECEIVED_EMAILS:
-        if any(recipient.lower() in r.lower() for r in item["recipients"]):
+    clean_target = recipient.strip().strip("<>").lower()
+    for item in get_all_received_emails():
+        clean_rcpts = [r.strip().strip("<>").lower() for r in item.get("recipients", [])]
+        if any(clean_target in r for r in clean_rcpts):
             return item
     return None
 
 
 def get_all_received_emails() -> List[Dict[str, Any]]:
-    return list(RECEIVED_EMAILS)
+    unique_emails = []
+    seen = set()
+    for item in RECEIVED_EMAILS:
+        rcpts = tuple(sorted(r.strip().strip("<>").lower() for r in item.get("recipients", [])))
+        subj = (item.get("subject") or "").strip()
+        otp = item.get("otp_code")
+        body_norm = (item.get("body") or "").strip()
+        key = (rcpts, subj, otp if otp else body_norm)
+        if key not in seen:
+            seen.add(key)
+            unique_emails.append(item)
+    return unique_emails
 
 
 def clear_received_emails():

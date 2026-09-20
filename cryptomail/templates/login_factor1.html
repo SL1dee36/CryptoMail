@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Вход: Фактор 1 — CryptoMail{% endblock %}
+{% block title %}CryptoMail{% endblock %}
 
 {% block content %}
 <div class="max-w-md mx-auto my-8">
     <div class="m3-card p-8">
-        <!-- 3FA Material Stepper -->
-        <div class="flex items-center justify-between mb-6 pb-4 border-b border-[var(--md-color-outline-variant)] text-xs">
+        <div
+            class="flex items-center justify-between mb-6 pb-4 border-b border-[var(--md-color-outline-variant)] text-xs">
             <div class="flex items-center space-x-2 font-bold text-[var(--md-color-primary)]">
                 <span class="w-6 h-6 rounded-full m3-step-active flex items-center justify-center text-xs">1</span>
                 <span>Пароль</span>
@@ -29,38 +29,36 @@
         </div>
 
         {% if error %}
-            <div class="mb-5 p-3.5 rounded-xl m3-badge-error text-xs flex items-start space-x-2">
-                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
-                <span>{{ error }}</span>
-            </div>
+        <div class="mb-5 p-3.5 rounded-xl m3-badge-error text-xs flex items-start space-x-2">
+            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+            <span>{{ error }}</span>
+        </div>
         {% endif %}
 
         <form method="POST" action="/login" class="space-y-4">
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Логин или Email</label>
+                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Логин или
+                    Email</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
                         <i class="fa-solid fa-user"></i>
                     </span>
-                    <input type="text" name="login_input" required autofocus
-                           value="{{ login_input or '' }}"
-                           placeholder="ivan_petrov или ivan@example.com"
-                           class="m3-input pl-10">
+                    <input type="text" name="login_input" required autofocus value="{{ login_input or '' }}"
+                        placeholder="ivan_petrov или ivan@example.com" class="m3-input pl-10">
                 </div>
             </div>
 
             <div>
                 <div class="flex items-center justify-between mb-1.5">
                     <label class="text-xs font-semibold uppercase tracking-wider opacity-80">Пароль</label>
-                    <a href="/recover-password" class="text-xs font-semibold text-[var(--md-color-primary)] hover:underline">Забыли пароль?</a>
+                    <a href="/recover-password"
+                        class="text-xs font-semibold text-[var(--md-color-primary)] hover:underline">Забыли пароль?</a>
                 </div>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
                         <i class="fa-solid fa-lock"></i>
                     </span>
-                    <input type="password" name="password" required
-                           placeholder="••••••••••••"
-                           class="m3-input pl-10">
+                    <input type="password" name="password" required placeholder="••••••••••••" class="m3-input pl-10">
                 </div>
             </div>
 
@@ -74,15 +72,19 @@
             <div class="flex items-center justify-between">
                 <span>Демо-аккаунты:</span>
                 <div class="flex space-x-2 text-[var(--md-color-primary)] font-medium">
-                    <button type="button" onclick="fillDemo('admin', 'AdminPassword123!')" class="hover:underline">admin</button>
+                    <button type="button" onclick="fillDemo('admin', 'AdminPassword123!')"
+                        class="hover:underline">admin</button>
                     <span>&bull;</span>
-                    <button type="button" onclick="fillDemo('alice', 'AlicePassword123!')" class="hover:underline">alice</button>
+                    <button type="button" onclick="fillDemo('alice', 'AlicePassword123!')"
+                        class="hover:underline">alice</button>
                     <span>&bull;</span>
-                    <button type="button" onclick="fillDemo('guest', 'GuestPassword123!')" class="hover:underline">guest</button>
+                    <button type="button" onclick="fillDemo('guest', 'GuestPassword123!')"
+                        class="hover:underline">guest</button>
                 </div>
             </div>
             <div class="text-center pt-1">
-                <a href="/login/guest" class="inline-flex items-center space-x-1.5 text-xs text-[var(--md-color-warning)] hover:underline font-semibold">
+                <a href="/login/guest"
+                    class="inline-flex items-center space-x-1.5 text-xs text-[var(--md-color-warning)] hover:underline font-semibold">
                     <i class="fa-solid fa-user-astronaut"></i>
                     <span>Быстрый гостевой вход (без 3FA) &rarr;</span>
                 </a>

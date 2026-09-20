@@ -1,6 +1,3 @@
-/**
- * Material 3 Light / Dark Theme Switcher with localStorage persistence
- */
 (function() {
     const savedTheme = localStorage.getItem('cryptomail_theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -29,6 +26,12 @@
     function updateThemeIcon(theme) {
         const icon = document.getElementById('theme-icon');
         const text = document.getElementById('theme-text');
+        const gmIcon = document.getElementById('gm-theme-icon');
+
+        if (gmIcon) {
+            gmIcon.className = theme === 'dark' ? 'fa-solid fa-moon text-indigo-400' : 'fa-solid fa-sun text-amber-500';
+        }
+
         if (!icon) return;
         if (theme === 'dark') {
             icon.className = 'fa-solid fa-moon text-indigo-400';

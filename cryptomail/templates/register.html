@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Регистрация — CryptoMail{% endblock %}
+{% block title %}CryptoMail{% endblock %}
 
 {% block content %}
 <div class="max-w-md mx-auto my-8">
@@ -14,10 +14,10 @@
         </div>
 
         {% if error %}
-            <div class="mb-5 p-3.5 rounded-xl m3-badge-error text-xs flex items-start space-x-2">
-                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
-                <span>{{ error }}</span>
-            </div>
+        <div class="mb-5 p-3.5 rounded-xl m3-badge-error text-xs flex items-start space-x-2">
+            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+            <span>{{ error }}</span>
+        </div>
         {% endif %}
 
         <form method="POST" action="/register" class="space-y-4" id="regForm">
@@ -27,11 +27,8 @@
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
                         <i class="fa-solid fa-user"></i>
                     </span>
-                    <input type="text" name="username" id="username" required
-                           value="{{ form_username or '' }}"
-                           pattern="^[a-zA-Z0-9_-]{3,20}$"
-                           placeholder="ivan_petrov"
-                           class="m3-input pl-10">
+                    <input type="text" name="username" id="username" required value="{{ form_username or '' }}"
+                        pattern="^[a-zA-Z0-9_-]{3,20}$" placeholder="ivan_petrov" class="m3-input pl-10">
                 </div>
                 <p class="text-[11px] opacity-60 mt-1">От 3 до 20 символов</p>
             </div>
@@ -42,10 +39,8 @@
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
                         <i class="fa-solid fa-envelope"></i>
                     </span>
-                    <input type="email" name="email" id="email" required
-                           value="{{ form_email or '' }}"
-                           placeholder="user@example.com"
-                           class="m3-input pl-10">
+                    <input type="email" name="email" id="email" required value="{{ form_email or '' }}"
+                        placeholder="user@example.com" class="m3-input pl-10">
                 </div>
             </div>
 
@@ -55,15 +50,18 @@
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 opacity-50">
                         <i class="fa-solid fa-lock"></i>
                     </span>
-                    <input type="password" name="password" id="password" required
-                           placeholder="••••••••••••"
-                           class="m3-input pl-10">
+                    <input type="password" name="password" id="password" required placeholder="••••••••••••"
+                        class="m3-input pl-10">
                 </div>
                 <ul class="text-[11px] opacity-75 mt-2 space-y-1 pl-1">
-                    <li id="rule-len" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Минимум 8 символов</span></li>
-                    <li id="rule-case" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Заглавные и строчные буквы</span></li>
-                    <li id="rule-num" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Минимум одна цифра</span></li>
-                    <li id="rule-spec" class="flex items-center space-x-1.5"><i class="fa-solid fa-circle-dot text-[8px]"></i> <span>Спецсимвол</span></li>
+                    <li id="rule-len" class="flex items-center space-x-1.5"><i
+                            class="fa-solid fa-circle-dot text-[8px]"></i> <span>Минимум 8 символов</span></li>
+                    <li id="rule-case" class="flex items-center space-x-1.5"><i
+                            class="fa-solid fa-circle-dot text-[8px]"></i> <span>Заглавные и строчные буквы</span></li>
+                    <li id="rule-num" class="flex items-center space-x-1.5"><i
+                            class="fa-solid fa-circle-dot text-[8px]"></i> <span>Минимум одна цифра</span></li>
+                    <li id="rule-spec" class="flex items-center space-x-1.5"><i
+                            class="fa-solid fa-circle-dot text-[8px]"></i> <span>Спецсимвол</span></li>
                 </ul>
             </div>
 

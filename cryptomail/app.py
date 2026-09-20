@@ -289,7 +289,18 @@ def render(request: Request, template_name: str, context: Dict[str, Any] = None)
             db.close()
     ctx["user"] = user
     ctx["current_user"] = user
+    ctx["ui_layout"] = request.cookies.get("cryptomail_layout", "classic")
     return templates.TemplateResponse(template_name, ctx)
+
+
+@app.get("/api/set-layout")
+def set_layout_api(layout: str = "classic", redirect: Optional[str] = None):
+    """Endpoint allowing server-side persistence of layout mode."""
+    target_url = redirect or "/inbox"
+    valid_layout = "gmail" if layout == "gmail" else "classic"
+    res = RedirectResponse(url=target_url, status_code=status.HTTP_302_FOUND)
+    res.set_cookie(key="cryptomail_layout", value=valid_layout, max_age=31536000, samesite="lax")
+    return res
 
 
 # ---------------------------------------------------------------------------
@@ -712,6 +723,8 @@ def inbox_route(request: Request, db: Session = Depends(get_db)):
     except Exception:
         pass
 
+    potential_recipients = db.query(User).filter(User.id != user.id).all()
+
     return render(
         request,
         "index.html",
@@ -721,6 +734,7 @@ def inbox_route(request: Request, db: Session = Depends(get_db)):
             "received_messages": received,
             "sent_messages": sent,
             "cached_message_ids": cached_ids,
+            "potential_recipients": potential_recipients,
             "active_page": "inbox",
         },
     )
