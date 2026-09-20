@@ -2,6 +2,7 @@
 # Author: Nazaryan Artem @Sl1dee36
 # Date: 05/2026.
 
+import base64
 from contextlib import asynccontextmanager
 from datetime import datetime
 import json
@@ -19,9 +20,32 @@ from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, st
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response as RawResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
+from crypto.ecp import (
+    generate_ecp_keypair,
+    export_ecp_private_key_pem,
+    export_ecp_public_key_pem,
+    issue_self_signed_certificate,
+    load_ecp_private_key_pem,
+    load_ecp_public_key_pem,
+    sign_message,
+    verify_message_signature,
+)
+from crypto.kuznyechik import Kuznyechik
+from crypto.rsa import (
+    export_private_key_pem,
+    export_public_key_pem,
+    generate_rsa_keypair,
+    get_or_create_rsa_keypair,
+    load_private_key_pem,
+    load_public_key_pem,
+    rsa_decrypt_hybrid,
+    rsa_encrypt_hybrid,
+)
+from crypto.streebog import hmac_streebog512, streebog256, streebog512
 from cryptomail.database import SessionLocal, get_db, init_db
 from cryptomail.models.audit import AuditLog
 from cryptomail.models.message import Message
@@ -61,6 +85,7 @@ from cryptomail.services.export_service import (
 from cryptomail.services.mail_server import (
     clear_received_emails,
     get_all_received_emails,
+    smtp_server,
     start_mail_server,
     stop_mail_server,
 )
@@ -171,11 +196,11 @@ async def lifespan(app: FastAPI):
     logger.info("Starting CryptoMail initialization...")
     init_db()
     seed_default_users()
-    start_mail_server()
+    await smtp_server.start()
     yield
     # Shutdown
     logger.info("Stopping CryptoMail services...")
-    stop_mail_server()
+    await smtp_server.stop()
 
 
 app = FastAPI(
@@ -941,10 +966,83 @@ def regen_codes(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(url="/keys", status_code=status.HTTP_302_FOUND)
 
 
+@app.get("/ecp/download/public")
+def download_ecp_public(request: Request, db: Session = Depends(get_db)):
+    user = require_auth(request, db)
+    if not user.ecp_public_key:
+        raise HTTPException(status_code=404, detail="Открытый ключ ЭЦП отсутствует")
+    return RawResponse(
+        content=user.ecp_public_key,
+        media_type="application/x-pem-file",
+        headers={"Content-Disposition": f'attachment; filename="ecp_{user.username}_public.pem"'},
+    )
+
+
+@app.get("/ecp/download/cert")
+def download_ecp_cert(request: Request, db: Session = Depends(get_db)):
+    user = require_auth(request, db)
+    if not user.ecp_certificate:
+        raise HTTPException(status_code=404, detail="Сертификат ЭЦП отсутствует")
+    return RawResponse(
+        content=user.ecp_certificate,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="cert_{user.username}.json"'},
+    )
+
+
+@app.get("/ecp/rsa/download/public")
+def download_rsa_public(request: Request, db: Session = Depends(get_db)):
+    user = require_auth(request, db)
+    if not user.rsa_public_key:
+        raise HTTPException(status_code=404, detail="Открытый ключ RSA отсутствует")
+    return RawResponse(
+        content=user.rsa_public_key,
+        media_type="application/x-pem-file",
+        headers={"Content-Disposition": f'attachment; filename="rsa_{user.username}_public.pem"'},
+    )
+
+
+@app.get("/ecp/rsa/download/private")
+def download_rsa_private(request: Request, db: Session = Depends(get_db)):
+    user = require_auth(request, db)
+    if not user.rsa_private_key:
+        raise HTTPException(status_code=404, detail="Закрытый ключ RSA отсутствует")
+    return RawResponse(
+        content=user.rsa_private_key,
+        media_type="application/x-pem-file",
+        headers={"Content-Disposition": f'attachment; filename="rsa_{user.username}_private.pem"'},
+    )
+
+
+@app.post("/ecp/rsa/reissue")
+def rsa_reissue_action(
+    request: Request,
+    key_size: int = Form(4096),
+    db: Session = Depends(get_db),
+):
+    user = require_auth(request, db)
+    priv, pub = get_or_create_rsa_keypair(key_size=key_size)
+    user.rsa_public_key = export_public_key_pem(pub)
+    user.rsa_private_key = export_private_key_pem(priv)
+    db.commit()
+
+    tag = "RSA-32K (32768 бит)" if key_size >= 32768 else f"RSA-{key_size} бит"
+    if "session" in request.scope:
+        request.session["alert_message"] = f"Ключевая пара {tag} успешно сгенерирована и сохранена!"
+        request.session["alert_type"] = "success"
+    return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @app.get("/mailtrap", response_class=HTMLResponse)
 def mailtrap_route(request: Request):
     emails = get_all_received_emails()
     return render(request, "mailtrap.html", {"emails": emails, "active_page": "mailtrap"})
+
+
+@app.get("/api/mailtrap/messages")
+def api_mailtrap_messages(admin: User = Depends(require_admin)):
+    """Returns received emails — restricted to administrators only."""
+    return JSONResponse(get_all_received_emails())
 
 
 @app.post("/mailtrap/clear")
@@ -1379,3 +1477,119 @@ def api_task_status(task_id: str):
     if not status_info:
         return JSONResponse(status_code=404, content={"error": "Задача не найдена"})
     return JSONResponse(content=status_info)
+
+
+# =========================================================================
+# REST API for External Modules and Command-Line Clients (docs.md)
+# =========================================================================
+
+class RSAGenRequest(BaseModel):
+    bits: int = 2048
+
+
+class RSAEncryptRequest(BaseModel):
+    public_key_pem: str
+    data: str
+
+
+class RSADecryptRequest(BaseModel):
+    private_key_pem: str
+    bundle_json: str
+
+
+class KuznyechikRequest(BaseModel):
+    key_hex: str
+    data: str
+    mode: str = "cbc"
+
+
+class StreebogRequest(BaseModel):
+    data: str
+    bits: int = 512
+    key: Optional[str] = None
+
+
+class ECPSignRequest(BaseModel):
+    private_key_pem: str
+    data: str
+
+
+class ECPVerifyRequest(BaseModel):
+    public_key_pem: str
+    data: str
+    signature_b64: str
+
+
+@app.post("/api/v1/crypto/rsa/generate")
+def api_rsa_generate(req: RSAGenRequest, _user: User = Depends(require_auth)):
+    if req.bits > 32768 or req.bits < 512:
+        raise HTTPException(status_code=400, detail="Размер ключа RSA должен быть в диапазоне от 512 до 32768 бит.")
+    if req.bits >= 32768:
+        priv, pub = get_or_create_rsa_keypair(key_size=req.bits)
+    else:
+        priv, pub = generate_rsa_keypair(key_size=req.bits)
+    return {
+        "bits": req.bits,
+        "private_key_pem": export_private_key_pem(priv),
+        "public_key_pem": export_public_key_pem(pub),
+    }
+
+
+@app.post("/api/v1/crypto/rsa/encrypt")
+def api_rsa_encrypt(req: RSAEncryptRequest, _user: User = Depends(require_auth)):
+    pub = load_public_key_pem(req.public_key_pem)
+    bundle = rsa_encrypt_hybrid(pub, req.data)
+    return {"encrypted_bundle": bundle}
+
+
+@app.post("/api/v1/crypto/rsa/decrypt")
+def api_rsa_decrypt(req: RSADecryptRequest, _user: User = Depends(require_auth)):
+    priv = load_private_key_pem(req.private_key_pem)
+    decrypted = rsa_decrypt_hybrid(priv, req.bundle_json)
+    return {"decrypted_data": decrypted.decode("utf-8", errors="replace")}
+
+
+@app.post("/api/v1/crypto/kuznyechik/encrypt")
+def api_kuznyechik_encrypt(req: KuznyechikRequest, _user: User = Depends(require_auth)):
+    key = bytes.fromhex(req.key_hex)
+    cipher = Kuznyechik(key)
+    raw = req.data.encode("utf-8")
+    enc = cipher.encrypt_cbc(raw) if req.mode == "cbc" else cipher.encrypt_ctr(raw)
+    return {"ciphertext_base64": base64.b64encode(enc).decode("ascii"), "mode": req.mode}
+
+
+@app.post("/api/v1/crypto/kuznyechik/decrypt")
+def api_kuznyechik_decrypt(req: KuznyechikRequest, _user: User = Depends(require_auth)):
+    key = bytes.fromhex(req.key_hex)
+    cipher = Kuznyechik(key)
+    raw = base64.b64decode(req.data)
+    dec = cipher.decrypt_cbc(raw) if req.mode == "cbc" else cipher.decrypt_ctr(raw)
+    return {"decrypted_data": dec.decode("utf-8", errors="replace"), "mode": req.mode}
+
+
+@app.post("/api/v1/crypto/streebog/hash")
+def api_streebog_hash(req: StreebogRequest, _user: User = Depends(require_auth)):
+    raw = req.data.encode("utf-8")
+    if req.key:
+        tag = hmac_streebog512(req.key.encode("utf-8"), raw)
+        return {"hmac_streebog512": tag.hex()}
+    if req.bits == 256:
+        h = streebog256(raw)
+        return {"hash_streebog256": h.hex()}
+    h = streebog512(raw)
+    return {"hash_streebog512": h.hex()}
+
+
+@app.post("/api/v1/crypto/ecp/sign")
+def api_ecp_sign(req: ECPSignRequest, _user: User = Depends(require_auth)):
+    priv = load_ecp_private_key_pem(req.private_key_pem)
+    sig = sign_message(priv, req.data)
+    return {"signature_b64": sig, "digest_algorithm": "GOST R 34.11-2012 Streebog-512"}
+
+
+@app.post("/api/v1/crypto/ecp/verify")
+def api_ecp_verify(req: ECPVerifyRequest, _user: User = Depends(require_auth)):
+    pub = load_ecp_public_key_pem(req.public_key_pem)
+    valid = verify_message_signature(pub, req.data, req.signature_b64)
+    return {"is_valid": valid}
+

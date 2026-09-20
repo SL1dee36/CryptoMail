@@ -231,6 +231,7 @@ def _run_encryption_worker(
             CRYPTO_TASKS[task_id]["stage"] = "Шифрование успешно завершено"
             CRYPTO_TASKS[task_id]["message_id"] = msg.id
             CRYPTO_TASKS[task_id]["status"] = "completed"
+            CRYPTO_TASKS[task_id]["result"] = {"message_id": msg.id, "subject": msg.subject}
 
     except Exception as ex:
         with TASKS_LOCK:

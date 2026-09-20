@@ -70,14 +70,22 @@
             </button>
         </form>
 
-        <div class="mt-6 pt-5 border-t border-[var(--md-color-outline-variant)] flex items-center justify-between text-xs opacity-75">
-            <span>Демо-аккаунты:</span>
-            <div class="flex space-x-2 text-[var(--md-color-primary)] font-medium">
-                <button type="button" onclick="fillDemo('admin', 'AdminPassword123!')" class="hover:underline">admin</button>
-                <span>&bull;</span>
-                <button type="button" onclick="fillDemo('alice', 'AlicePassword123!')" class="hover:underline">alice</button>
-                <span>&bull;</span>
-                <button type="button" onclick="fillDemo('guest', 'GuestPassword123!')" class="hover:underline">guest</button>
+        <div class="mt-6 pt-5 border-t border-[var(--md-color-outline-variant)] space-y-3 text-xs opacity-75">
+            <div class="flex items-center justify-between">
+                <span>Демо-аккаунты:</span>
+                <div class="flex space-x-2 text-[var(--md-color-primary)] font-medium">
+                    <button type="button" onclick="fillDemo('admin', 'AdminPassword123!')" class="hover:underline">admin</button>
+                    <span>&bull;</span>
+                    <button type="button" onclick="fillDemo('alice', 'AlicePassword123!')" class="hover:underline">alice</button>
+                    <span>&bull;</span>
+                    <button type="button" onclick="fillDemo('guest', 'GuestPassword123!')" class="hover:underline">guest</button>
+                </div>
+            </div>
+            <div class="text-center pt-1">
+                <a href="/login/guest" class="inline-flex items-center space-x-1.5 text-xs text-[var(--md-color-warning)] hover:underline font-semibold">
+                    <i class="fa-solid fa-user-astronaut"></i>
+                    <span>Быстрый гостевой вход (без 3FA) &rarr;</span>
+                </a>
             </div>
         </div>
     </div>

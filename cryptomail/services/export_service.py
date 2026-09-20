@@ -493,6 +493,7 @@ def generate_signed_message_pdf(
         "cert_serial": cert_serial,
         "timestamp": now_str,
         "signature": pdf_signature_b64,
+        "signature_b64": pdf_signature_b64,
         "algorithm": "ECDSA SECP384R1 + GOST R 34.11-2012 Streebog-512",
     }
     return pdf_bytes, pdf_signature_b64, meta_info

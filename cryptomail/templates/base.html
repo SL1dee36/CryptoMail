@@ -104,48 +104,63 @@
     </main>
 
     <!-- Footer -->
-    <footer class="m3-appbar border-t py-3 mt-auto">
+    <!-- <footer class="m3-appbar border-t py-3 mt-auto">
         <div class="max-w-7xl mx-auto px-4 text-center text-xs opacity-60">
             CryptoMail
         </div>
-    </footer>
+    </footer> -->
 
     <!-- Top Floating Toast Notification (Appears upon completion) -->
-    <div id="crypto-top-toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none transition-all duration-300 transform opacity-0 -translate-y-4 font-sans" style="display: none;">
-        <div class="m3-card px-5 py-3 rounded-full shadow-2xl border border-emerald-500/50 bg-emerald-950/95 dark:bg-emerald-900/95 text-white flex items-center space-x-3 pointer-events-auto backdrop-blur-md">
-            <div class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold shadow-sm">
+    <div id="crypto-top-toast"
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] pointer-events-none transition-all duration-300 transform opacity-0 -translate-y-4 font-sans"
+        style="display: none;">
+        <div
+            class="m3-card px-5 py-3 rounded-full shadow-2xl border border-emerald-500/50 bg-emerald-950/95 dark:bg-emerald-900/95 text-white flex items-center space-x-3 pointer-events-auto backdrop-blur-md">
+            <div
+                class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 text-xs font-bold shadow-sm">
                 <i class="fa-solid fa-check"></i>
             </div>
             <div class="text-xs pr-1">
                 <div id="crypto-toast-title" class="font-bold text-emerald-200">Операция успешно завершена!</div>
                 <div id="crypto-toast-subtitle" class="text-[11px] text-emerald-100/80">Сообщение готово</div>
             </div>
-            <button type="button" onclick="CryptoTaskTracker.hideTopToast()" class="text-white/70 hover:text-white text-xs p-1 transition" title="Закрыть уведомление">
+            <button type="button" onclick="CryptoTaskTracker.hideTopToast()"
+                class="text-white/70 hover:text-white text-xs p-1 transition" title="Закрыть уведомление">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
     </div>
 
-    <div id="crypto-dock" class="fixed bottom-5 right-5 z-[9999] transition-all duration-300 ease-in-out font-sans" style="display: none; opacity: 0; transform: translateY(16px);">
-        <div class="m3-card shadow-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] rounded-2xl overflow-hidden w-[350px] sm:w-[380px] max-w-[calc(100vw-2rem)]">
-            
+    <div id="crypto-dock" class="fixed bottom-5 right-5 z-[9999] transition-all duration-300 ease-in-out font-sans"
+        style="display: none; opacity: 0; transform: translateY(16px);">
+        <div
+            class="m3-card shadow-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)] rounded-2xl overflow-hidden w-[350px] sm:w-[380px] max-w-[calc(100vw-2rem)]">
+
             <!-- Dock Header (Click to expand / collapse) -->
-            <div id="crypto-dock-header" class="px-4 py-3 bg-[var(--md-color-surface-container)] border-b border-[var(--md-color-outline-variant)] flex items-center justify-between cursor-pointer select-none hover:bg-[var(--md-color-surface-container-high)] transition" title="Нажмите, чтобы свернуть / развернуть подробности">
+            <div id="crypto-dock-header"
+                class="px-4 py-3 bg-[var(--md-color-surface-container)] border-b border-[var(--md-color-outline-variant)] flex items-center justify-between cursor-pointer select-none hover:bg-[var(--md-color-surface-container-high)] transition"
+                title="Нажмите, чтобы свернуть / развернуть подробности">
                 <div class="flex items-center space-x-2.5 overflow-hidden">
-                    <div id="crypto-dock-icon" class="w-7 h-7 rounded-lg flex items-center justify-center m3-badge-primary flex-shrink-0">
+                    <div id="crypto-dock-icon"
+                        class="w-7 h-7 rounded-lg flex items-center justify-center m3-badge-primary flex-shrink-0">
                         <i class="fa-solid fa-spinner fa-spin text-xs"></i>
                     </div>
                     <div class="truncate">
                         <div id="crypto-dock-title" class="text-xs font-bold truncate">Шифрование сообщения</div>
-                        <div id="crypto-dock-subtitle" class="text-[11px] opacity-70 truncate">Выполняется криптографическая операция...</div>
+                        <div id="crypto-dock-subtitle" class="text-[11px] opacity-70 truncate">Выполняется
+                            криптографическая операция...</div>
                     </div>
                 </div>
-                
+
                 <div class="flex items-center space-x-1.5 flex-shrink-0 ml-2">
-                    <button type="button" id="crypto-dock-toggle-btn" class="p-1.5 text-xs opacity-70 hover:opacity-100 hover:bg-[var(--md-color-surface-container-highest)] rounded-lg transition" title="Свернуть / Развернуть">
+                    <button type="button" id="crypto-dock-toggle-btn"
+                        class="p-1.5 text-xs opacity-70 hover:opacity-100 hover:bg-[var(--md-color-surface-container-highest)] rounded-lg transition"
+                        title="Свернуть / Развернуть">
                         <i id="crypto-dock-chevron" class="fa-solid fa-chevron-down text-xs"></i>
                     </button>
-                    <button type="button" id="crypto-dock-close-btn" class="p-1.5 text-xs opacity-70 hover:opacity-100 hover:text-red-500 hover:bg-[var(--md-color-surface-container-highest)] rounded-lg transition" title="Закрыть панель">
+                    <button type="button" id="crypto-dock-close-btn"
+                        class="p-1.5 text-xs opacity-70 hover:opacity-100 hover:text-red-500 hover:bg-[var(--md-color-surface-container-highest)] rounded-lg transition"
+                        title="Закрыть панель">
                         <i class="fa-solid fa-xmark text-xs"></i>
                     </button>
                 </div>
@@ -160,26 +175,31 @@
                         <span id="crypto-percent-label" class="mono font-bold text-[var(--md-color-primary)]">0%</span>
                     </div>
                     <div class="w-full bg-[var(--md-color-surface-container-highest)] rounded-full h-2 overflow-hidden">
-                        <div id="crypto-progress-bar" class="h-2 rounded-full bg-[var(--md-color-primary)] transition-all duration-200" style="width: 0%;"></div>
+                        <div id="crypto-progress-bar"
+                            class="h-2 rounded-full bg-[var(--md-color-primary)] transition-all duration-200"
+                            style="width: 0%;"></div>
                     </div>
                 </div>
 
                 <!-- Metrics Grid: Iterations, Candidates, Stopwatch, Algorithm -->
                 <div class="grid grid-cols-2 gap-2 text-xs">
                     <!-- Iterations -->
-                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                    <div
+                        class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
                             <i class="fa-solid fa-arrows-spin text-[9px] text-[var(--md-color-primary)]"></i>
                             <span>Итераций:</span>
                         </div>
                         <div class="mt-1 font-bold mono text-sm text-[var(--md-color-primary)]">
                             <span id="crypto-stat-iterations">0</span>
-                            <span class="text-[10px] opacity-50 font-normal">/ <span id="crypto-stat-max-iterations">256</span></span>
+                            <span class="text-[10px] opacity-50 font-normal">/ <span
+                                    id="crypto-stat-max-iterations">256</span></span>
                         </div>
                     </div>
 
                     <!-- Candidates Tested -->
-                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                    <div
+                        class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
                             <i class="fa-solid fa-filter text-[9px] text-[var(--md-color-tertiary)]"></i>
                             <span>Кандидатов:</span>
@@ -190,7 +210,8 @@
                     </div>
 
                     <!-- Live Stopwatch Timer -->
-                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                    <div
+                        class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
                             <i class="fa-solid fa-stopwatch text-[9px] text-[var(--md-color-secondary)]"></i>
                             <span>Время:</span>
@@ -201,24 +222,30 @@
                     </div>
 
                     <!-- Algorithm -->
-                    <div class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
+                    <div
+                        class="p-2.5 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container)]">
                         <div class="text-[10px] uppercase font-bold opacity-60 flex items-center space-x-1">
                             <i class="fa-solid fa-shield-halved text-[9px] text-[var(--md-color-warning)]"></i>
                             <span>Алгоритм:</span>
                         </div>
-                        <div class="mt-1 font-semibold text-[11px] truncate text-[var(--md-color-on-surface)]" id="crypto-stat-algorithm">
+                        <div class="mt-1 font-semibold text-[11px] truncate text-[var(--md-color-on-surface)]"
+                            id="crypto-stat-algorithm">
                             RSA-32K
                         </div>
                     </div>
                 </div>
 
                 <!-- Completed Action Buttons (Go to Message & Close Panel) -->
-                <div id="crypto-dock-actions" class="pt-2 border-t border-[var(--md-color-outline-variant)] flex items-center space-x-2" style="display: none;">
-                    <a id="crypto-btn-goto-message" href="#" class="m3-btn-filled text-xs py-2 px-3 flex-1 flex items-center justify-center space-x-1.5 no-underline">
+                <div id="crypto-dock-actions"
+                    class="pt-2 border-t border-[var(--md-color-outline-variant)] flex items-center space-x-2"
+                    style="display: none;">
+                    <a id="crypto-btn-goto-message" href="#"
+                        class="m3-btn-filled text-xs py-2 px-3 flex-1 flex items-center justify-center space-x-1.5 no-underline">
                         <i class="fa-solid fa-arrow-right text-xs"></i>
                         <span>Перейти к сообщению</span>
                     </a>
-                    <button type="button" id="crypto-btn-close-dock" class="m3-btn-outlined text-xs py-2 px-3 flex items-center justify-center space-x-1">
+                    <button type="button" id="crypto-btn-close-dock"
+                        class="m3-btn-outlined text-xs py-2 px-3 flex items-center justify-center space-x-1">
                         <i class="fa-solid fa-xmark text-xs"></i>
                         <span>Закрыть</span>
                     </button>

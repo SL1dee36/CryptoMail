@@ -64,6 +64,7 @@
                                 <select name="role" onchange="this.form.submit()" class="m3-select py-1 px-2.5 text-xs w-auto">
                                     <option value="user" {% if u.role=='user' %}selected{% endif %}>Пользователь</option>
                                     <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Админ</option>
+                                    <option value="guest" {% if u.role=='guest' %}selected{% endif %}>Гость</option>
                                 </select>
                             </form>
                         </td>
