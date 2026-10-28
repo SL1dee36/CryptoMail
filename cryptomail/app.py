@@ -295,7 +295,7 @@ def render(request: Request, template_name: str, context: Dict[str, Any] = None)
     ctx["user"] = user
     ctx["current_user"] = user
     ctx["ui_layout"] = request.cookies.get("cryptomail_layout", "classic")
-    return templates.TemplateResponse(template_name, ctx)
+    return templates.TemplateResponse(request, template_name, ctx)
 
 
 @app.get("/api/set-layout")
