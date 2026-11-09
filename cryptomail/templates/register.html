@@ -66,13 +66,27 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider mb-1.5 opacity-80">Ключ RSA</label>
-                <select name="rsa_key_size" class="m3-select text-xs">
-                    <option value="4096" selected>RSA-4096 (Рекомендуемый)</option>
-                    <option value="2048">RSA-2048 (Быстрый)</option>
-                    <option value="8192">RSA-8192 (Высокая стойкость)</option>
-                    <option value="32768">RSA-32K (32768 бит)</option>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-semibold uppercase tracking-wider opacity-80">Ключ RSA-32K (32768 бит)</label>
+                    <span class="m3-badge m3-badge-secondary mono text-[10px]">Пул 10 пар</span>
+                </div>
+                <select name="rsa_key_id" class="m3-select text-xs">
+                    <option value="" selected>Автоматически выделить ключ RSA-32K из пула</option>
+                    {% if available_keys %}
+                        {% for k in available_keys %}
+                        <option value="{{ k.id }}">Ключевая пара #{{ k.id }} (RSA-32K, 32768 бит) — Свободен</option>
+                        {% endfor %}
+                    {% else %}
+                        {% for i in range(4, 11) %}
+                        <option value="{{ i }}">Ключевая пара #{{ i }} (RSA-32K, 32768 бит)</option>
+                        {% endfor %}
+                    {% endif %}
                 </select>
+                <input type="hidden" name="rsa_key_size" value="32768">
+                <p class="text-[11px] opacity-70 mt-1.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt text-amber-500"></i>
+                    <span>Исключительно RSA-32K из фиксированного пула (пары 1–3 у admin, alice, bob; 7 пар для тестов).</span>
+                </p>
             </div>
 
             <button type="submit" class="w-full mt-4 py-3 m3-btn-filled text-sm">

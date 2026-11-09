@@ -107,117 +107,58 @@
                 </div>
             </div>
 
-            <!-- Переключатель режимов: стандартная генерация или ввод готовых P и Q -->
-            <div class="flex items-center gap-1.5 p-1 rounded-2xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-low)]">
-                <button type="button" id="rsa-mode-quick-btn" onclick="toggleRSAMode('quick')"
-                    class="m3-btn-tonal text-xs py-1 px-3 active font-semibold">
-                    Стандартная
-                </button>
-                <button type="button" id="rsa-mode-pq-btn" onclick="toggleRSAMode('pq')"
-                    class="m3-btn-outlined text-xs py-1 px-3 font-semibold text-amber-600 dark:text-amber-400 border-amber-500/40">
-                    <i class="fa-solid fa-bolt mr-1"></i> RSA-32K (P и Q)
-                </button>
+            <div class="flex items-center gap-2">
+                <span class="m3-badge m3-badge-secondary mono text-xs font-semibold">
+                    <i class="fa-solid fa-database mr-1"></i> Пул: 10 пар RSA-32K
+                </span>
             </div>
         </div>
 
-        <!-- Режим 1: Быстрая стандартная генерация (2048, 4096, 8192) -->
-        <div id="rsa-mode-quick" class="space-y-4">
-            <form method="POST" action="/ecp/rsa/reissue" class="flex flex-wrap items-center gap-3">
-                <label class="text-xs font-semibold opacity-80">Размер ключа:</label>
-                <select name="key_size" id="quick-key-size" onchange="onQuickSizeChange(this.value)" class="m3-select py-1.5 px-3 text-xs w-auto">
-                    <option value="4096" {% if rsa_key_size==4096 %}selected{% endif %}>RSA-4096 (рекомендуемый)</option>
-                    <option value="2048" {% if rsa_key_size==2048 %}selected{% endif %}>RSA-2048 (базовый)</option>
-                    <option value="8192" {% if rsa_key_size==8192 %}selected{% endif %}>RSA-8192 (высокая стойкость)</option>
-                    <option value="32768" {% if rsa_key_size>= 32768 %}selected{% endif %}>RSA-32K (32768 бит)</option>
-                </select>
-                <button type="submit" onclick="return confirm('Сгенерировать новую ключевую пару RSA?')"
-                    class="m3-btn-filled text-xs py-1.5 px-4">
-                    <i class="fa-solid fa-arrows-rotate mr-1"></i>
-                    <span>Обновить</span>
-                </button>
-                <span id="quick-32k-hint" class="text-[11px] text-amber-600 dark:text-amber-400 hidden">
-                    <i class="fa-solid fa-circle-info mr-1"></i> Для 32K ключа рекомендуется использовать вкладку «RSA-32K (P и Q)».
-                </span>
-            </form>
-        </div>
-
-        <!-- Режим 2: Сборка RSA-32K из готовых множителей P и Q -->
-        <div id="rsa-mode-pq" class="space-y-4 hidden">
-            <div class="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 text-xs space-y-1.5">
-                <div class="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-bolt"></i>
-                    <span>Мгновенная сборка RSA-32K из предвычисленных множителей P и Q</span>
+        <!-- Выбор ключа из пула 10 пар RSA-32K -->
+        <div class="space-y-4">
+            <div class="p-3.5 rounded-2xl border border-[var(--md-color-primary)]/20 bg-[var(--md-color-primary)]/5 text-xs space-y-1.5">
+                <div class="font-bold text-[var(--md-color-primary)] flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>Фиксированный пул 10 ключей RSA-32K (32768 бит)</span>
+                    </div>
+                    {% if current_pool_key_id %}
+                    <span class="m3-badge m3-badge-primary mono text-[10px]">
+                        Активен ключ #{{ current_pool_key_id }}
+                    </span>
+                    {% endif %}
                 </div>
                 <div class="opacity-80 text-[11px] leading-relaxed">
-                    Генерация простых чисел длиной 16384 бит на лету занимает длительное время на CPU. Чтобы получить ключ 32768 бит без задержки, укажите заранее сгенерированные множители $P$ и $Q$ (например, созданные через <code class="mono bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded">python cli.py rsa-pregen</code>) или загрузите файл <code class="mono">primes.json</code>.
+                    Все ключевые пары RSA в системе имеют разрядность 32768 бит и зафиксированы в пуле: ключи <strong>#1 (admin)</strong>, <strong>#2 (alice)</strong>, <strong>#3 (bob)</strong> закреплены по умолчанию, а ключи <strong>#4–#10</strong> доступны для тестирования и других пользователей.
                 </div>
             </div>
 
-            <form method="POST" action="/ecp/rsa/reissue" enctype="multipart/form-data" class="space-y-4" id="pq-form">
-                <input type="hidden" name="key_size" value="32768">
+            <form method="POST" action="/ecp/rsa/reissue" class="flex flex-wrap items-center gap-3">
+                <label class="text-xs font-semibold opacity-80">Выбрать пару из пула:</label>
+                <select name="pool_key_id" class="m3-select py-1.5 px-3 text-xs w-auto">
+                    {% if pool_keys %}
+                        {% for k in pool_keys %}
+                        <option value="{{ k.id }}" {% if current_pool_key_id == k.id %}selected{% endif %}>
+                            Ключ #{{ k.id }} (RSA-32K, 32768 бит)
+                            {% if k.default_owner %} [{{ k.default_owner }}]{% elif k.current_owner %} [{{ k.current_owner }}]{% else %} [Свободен]{% endif %}
+                            {% if current_pool_key_id == k.id %} ★ (Текущий){% endif %}
+                        </option>
+                        {% endfor %}
+                    {% else %}
+                        {% for i in range(1, 11) %}
+                        <option value="{{ i }}" {% if current_pool_key_id == i %}selected{% endif %}>
+                            Ключ #{{ i }} (RSA-32K, 32768 бит)
+                            {% if i == 1 %} [admin]{% elif i == 2 %} [alice]{% elif i == 3 %} [bob]{% else %} [Свободен]{% endif %}
+                        </option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
 
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <span class="text-xs font-bold uppercase tracking-wider opacity-80">Множители P и Q</span>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <input type="file" id="pq-file-input" name="primes_file" accept=".json,.txt" class="hidden" onchange="handlePQFileUpload(this)">
-                        <button type="button" onclick="document.getElementById('pq-file-input').click()"
-                            class="m3-btn-tonal text-xs py-1 px-3" title="Загрузить primes.json или p.txt / q.txt">
-                            <i class="fa-solid fa-folder-open mr-1.5"></i>
-                            <span>Загрузить primes.json</span>
-                        </button>
-                        <button type="button" onclick="submitServerPregen()"
-                            class="m3-btn-outlined text-xs py-1 px-3" title="Использовать файлы из каталога data/rsa_pregen на сервере">
-                            <i class="fa-solid fa-server mr-1.5"></i>
-                            <span>Взять с сервера (data/rsa_pregen)</span>
-                        </button>
-                        <input type="hidden" name="use_server_pregen" id="use_server_pregen_input" value="0">
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label for="custom_p" class="text-xs font-semibold">Простое число P (≈16384 бит):</label>
-                            <span id="p-bit-count" class="mono text-[11px] text-[var(--md-color-primary)] font-bold">0 бит</span>
-                        </div>
-                        <textarea name="custom_p" id="custom_p" rows="3"
-                            placeholder="Вставьте десятичное число P, шестнадцатеричное (0x...) или вставьте весь JSON целиком..."
-                            oninput="updatePQStats()"
-                            class="m3-textarea font-mono text-[11px]"></textarea>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label for="custom_q" class="text-xs font-semibold">Простое число Q (≈16384 бит):</label>
-                            <span id="q-bit-count" class="mono text-[11px] text-[var(--md-color-secondary)] font-bold">0 бит</span>
-                        </div>
-                        <textarea name="custom_q" id="custom_q" rows="3"
-                            placeholder="Вставьте простое число Q (десятичное или 0x...)..."
-                            oninput="updatePQStats()"
-                            class="m3-textarea font-mono text-[11px]"></textarea>
-                    </div>
-                </div>
-
-                <div class="p-3 rounded-xl border border-[var(--md-color-outline-variant)] bg-[var(--md-color-surface-container-highest)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
-                    <div>
-                        <span class="opacity-70">Расчетный размер модуля N:</span>
-                        <span id="total-modulus-bits" class="font-bold mono ml-1 text-sm text-[var(--md-color-primary)]">0 бит</span>
-                    </div>
-                    <div id="pq-validation-badge" class="m3-badge m3-badge-neutral text-[10px]">
-                        Ожидание ввода P и Q
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-end gap-2.5">
-                    <button type="button" onclick="clearPQInputs()" class="m3-btn-tonal text-xs py-1.5 px-3">
-                        Очистить
-                    </button>
-                    <button type="submit" id="pq-submit-btn" class="m3-btn-filled text-xs py-1.5 px-4"
-                        onclick="return confirm('Собрать и активировать новую ключевую пару RSA-32K из указанных P и Q?')">
-                        <i class="fa-solid fa-key mr-1.5"></i>
-                        <span>Собрать и активировать RSA-32K</span>
-                    </button>
-                </div>
+                <button type="submit" onclick="return confirm('Активировать выбранную ключевую пару RSA-32K из пула?')"
+                    class="m3-btn-filled text-xs py-1.5 px-4">
+                    <i class="fa-solid fa-check mr-1.5"></i>
+                    <span>Активировать ключ</span>
+                </button>
             </form>
         </div>
 

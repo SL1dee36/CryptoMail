@@ -148,6 +148,7 @@ def register_user(
     password: str,
     role: str = "user",
     rsa_key_size: int = 4096,
+    rsa_key_id: Optional[int] = None,
 ) -> Tuple[Optional[User], Optional[str]]:
     valid, err = validate_registration_inputs(username, email, password)
     if not valid:
@@ -162,9 +163,20 @@ def register_user(
     totp_sec = generate_totp_secret()
     rec_codes = generate_recovery_codes()
 
-    # Pre-generate user's ECP and RSA keys (default 4096 bits or user-chosen)
+    # Pre-generate user's ECP and allocate RSA key from precomputed 10-key RSA-32K pool
     ecp_priv, ecp_pub = generate_ecp_keypair()
-    rsa_priv, rsa_pub = get_or_create_rsa_keypair(key_size=rsa_key_size)
+    try:
+        from cryptomail.services.rsa_pool_service import (
+            get_pool_key_by_id,
+            get_key_for_username,
+        )
+        if rsa_key_id is not None and 1 <= int(rsa_key_id) <= 10:
+            rsa_priv, rsa_pub = get_pool_key_by_id(int(rsa_key_id))
+        else:
+            _, rsa_priv, rsa_pub = get_key_for_username(username, db=db)
+    except Exception as e:
+        logger.warning("Could not allocate RSA key from 32K pool: %s; falling back to standard keypair", e)
+        rsa_priv, rsa_pub = get_or_create_rsa_keypair(key_size=rsa_key_size)
 
     user = User(
         username=username,
@@ -414,8 +426,17 @@ def seed_default_users(db: Optional[Session] = None):
             existing = db.query(User).filter(User.username == uname).first()
             if not existing:
                 register_user(db, uname, uemail, upwd, role=urole)
-            elif not existing.recovery_codes_list:
-                existing.recovery_codes_list = generate_recovery_codes()
+            else:
+                if not existing.recovery_codes_list:
+                    existing.recovery_codes_list = generate_recovery_codes()
+                # Ensure default users (admin, alice, bob) use keys 1, 2, 3 from the 32K pool
+                try:
+                    from cryptomail.services.rsa_pool_service import DEFAULT_USER_KEYS, assign_pool_key_to_user
+                    if uname in DEFAULT_USER_KEYS:
+                        kid = DEFAULT_USER_KEYS[uname]
+                        assign_pool_key_to_user(existing, kid, db)
+                except Exception:
+                    pass
                 db.commit()
     finally:
         if close_when_done:

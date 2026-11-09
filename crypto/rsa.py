@@ -634,12 +634,26 @@ def generate_rsa_keypair(key_size: int = 32768, public_exponent: int = 65537) ->
 def get_or_create_rsa_keypair(key_size: int = 4096) -> Tuple[RSAPrivateKey, RSAPublicKey]:
     """
     Retrieves or generates an RSA key pair.
-    Checks precomputed pool cache and pregen primes for instant response (4K, 8K, 32K, etc.).
+    Checks precomputed pool cache (including 10-key RSA-32K pool) and pregen primes for instant response.
     Falls back to parallel generation if precomputed parameters are not found.
     """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     pool_dir = os.path.join(base_dir, "data", "rsa_pool")
     pregen_dir = os.path.join(base_dir, "data", "rsa_pregen")
+    keys_32k_json = os.path.join(base_dir, "data", "keys_32k", "keys_32k.json")
+
+    # 0. Check precomputed 10-key RSA-32K pool
+    if key_size >= 32768 and os.path.exists(keys_32k_json):
+        try:
+            with open(keys_32k_json, "r", encoding="utf-8") as f:
+                cdata = json.load(f)
+            keys_list = cdata.get("keys", [])
+            if keys_list:
+                item = keys_list[0]
+                logger.info("RSA-%d: загружен ключ #%d из пула 10 ключей", key_size, item.get("id", 1))
+                return load_private_key_pem(item["private_key_pem"]), load_public_key_pem(item["public_key_pem"])
+        except Exception:
+            pass
 
     # 1. Look for precomputed key in rsa_pool
     if os.path.exists(pool_dir):

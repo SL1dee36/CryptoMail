@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from typing import List, Optional
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import deferred
 from cryptomail.database import Base, EncryptedString, EncryptedText
 
 
@@ -23,14 +24,14 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # RSA keypair (private key encrypted at rest via Kuznyechik)
+    # RSA keypair (private key encrypted at rest via Kuznyechik, loaded lazily for high speed)
     rsa_public_key = Column(Text, nullable=True)
-    rsa_private_key = Column(EncryptedText, nullable=True)
+    rsa_private_key = deferred(Column(EncryptedText, nullable=True))
     rsa_key_size = Column(Integer, default=4096, nullable=False)
 
     # GOST R 34.10-2012 Digital Signature (ECP) & Self-Issued Certificate
     ecp_public_key = Column(Text, nullable=True)
-    ecp_private_key = Column(EncryptedText, nullable=True)
+    ecp_private_key = deferred(Column(EncryptedText, nullable=True))
     ecp_certificate = Column(Text, nullable=True)
 
     # 3FA credentials encrypted at rest via Kuznyechik

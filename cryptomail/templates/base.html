@@ -23,28 +23,35 @@
             } catch (e) { }
         })();
     </script>
+    <!-- Local Fonts & Non-blocking Google Sans fallback -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&display=swap"></noscript>
+
+    <!-- Core Stylesheets (Local & Cached) -->
+    <link rel="stylesheet" href="/templates/style/font-awesome.min.css">
     <link rel="stylesheet" href="/templates/style/material3.css">
     <link rel="stylesheet" href="/templates/style/gmail.css">
+
+    <!-- High-Performance Local Scripts & Instant Navigation -->
     <script src="/templates/style/theme.js"></script>
     <script src="/templates/style/layout.js"></script>
     <script src="/templates/style/crypto_tracker.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/templates/style/instant_nav.js"></script>
+    <script src="/templates/style/tailwind.js"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['"Google Sans Flex"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+                        sans: ['"Google Sans Flex"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
                         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
                     }
                 }
             }
         };
     </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body class="min-h-screen flex flex-col font-sans antialiased m3-surface">

@@ -65,5 +65,5 @@ ecp_view = keys_profile_route
 mailtrap_view = mailtrap_route
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    from run import main as run_main
+    run_main()

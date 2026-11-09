@@ -3,6 +3,7 @@
 # Date: 05/2026.
 
 import base64
+import functools
 import os
 from typing import Optional, Union
 from crypto.kuznyechik import Kuznyechik
@@ -53,10 +54,8 @@ def encrypt_db_field(value: Optional[Union[str, bytes]]) -> Optional[str]:
     return base64.b64encode(enc).decode("ascii")
 
 
-def decrypt_db_field(enc_value: Optional[str]) -> Optional[str]:
-    """Decrypts base64 Kuznyechik CBC ciphertext back into utf-8 string."""
-    if enc_value is None:
-        return None
+@functools.lru_cache(maxsize=4096)
+def _decrypt_db_field_cached(enc_value: str) -> str:
     data = base64.b64decode(enc_value)
     try:
         dec = _cipher.decrypt_cbc(data)
@@ -70,15 +69,21 @@ def decrypt_db_field(enc_value: Optional[str]) -> Optional[str]:
     return dec.decode("utf-8", errors="replace")
 
 
+def decrypt_db_field(enc_value: Optional[str]) -> Optional[str]:
+    """Decrypts base64 Kuznyechik CBC ciphertext back into utf-8 string."""
+    if enc_value is None:
+        return None
+    return _decrypt_db_field_cached(enc_value)
+
+
 def encrypt_db_bytes(value: Optional[bytes]) -> Optional[bytes]:
     if value is None:
         return None
     return _cipher.encrypt_cbc(value)
 
 
-def decrypt_db_bytes(enc_value: Optional[bytes]) -> Optional[bytes]:
-    if enc_value is None:
-        return None
+@functools.lru_cache(maxsize=4096)
+def _decrypt_db_bytes_cached(enc_value: bytes) -> bytes:
     try:
         return _cipher.decrypt_cbc(enc_value)
     except Exception:
@@ -87,3 +92,9 @@ def decrypt_db_bytes(enc_value: Optional[bytes]) -> Optional[bytes]:
             return legacy_cipher.decrypt_cbc(enc_value)
         except Exception:
             raise
+
+
+def decrypt_db_bytes(enc_value: Optional[bytes]) -> Optional[bytes]:
+    if enc_value is None:
+        return None
+    return _decrypt_db_bytes_cached(enc_value)

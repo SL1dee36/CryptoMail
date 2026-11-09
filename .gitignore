@@ -40,6 +40,7 @@ cryptomail.db
 # Cryptographic artifacts & keys
 *.pem
 *.key
+data/keys_32k/
 data/rsa_pool/precomputed_32k.json
 data/rsa_pregen/
 data/test_pregen/

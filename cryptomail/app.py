@@ -215,6 +215,19 @@ app.add_middleware(
     secret_key=os.environ.get("SESSION_SECRET", "cryptomail-gost-secret-session-key-2026"),
 )
 
+
+@app.middleware("http")
+async def add_cache_headers(request: Request, call_next):
+    """High-performance static asset caching to avoid blocking page transitions."""
+    response = await call_next(request)
+    path = request.url.path
+    if (
+        path.startswith(("/templates/style/", "/style/", "/cryptomail/style/"))
+        or path in ("/favicon.ico", "/favicon.svg", "/main.css", "/app.js")
+    ):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
 # Static and Templates configuration
 if os.path.exists(STYLE_DIR):
     app.mount("/templates/style", StaticFiles(directory=STYLE_DIR), name="templates_style")
@@ -251,20 +264,25 @@ def app_js():
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
-    """Retrieves authenticated user from session cookie or Starlette session."""
+    """Retrieves authenticated user from session cookie or Starlette session with request-level memoization."""
+    if hasattr(request.state, "current_user"):
+        return request.state.current_user
+    user = None
     if "session" in request.scope:
         user_id = request.session.get("user_id")
         if user_id:
             user = db.query(User).filter(User.id == user_id).first()
-            if user:
-                return user
-    token = request.cookies.get(SESSION_COOKIE_NAME)
-    if not token:
-        return None
-    user_id = ACTIVE_SESSIONS.get(token)
-    if not user_id:
-        return None
-    return db.query(User).filter(User.id == user_id).first()
+    if not user:
+        token = request.cookies.get(SESSION_COOKIE_NAME)
+        if token:
+            user_id = ACTIVE_SESSIONS.get(token)
+            if user_id:
+                user = db.query(User).filter(User.id == user_id).first()
+    try:
+        request.state.current_user = user
+    except Exception:
+        pass
+    return user
 
 
 def require_auth(request: Request, db: Session = Depends(get_db)) -> User:
@@ -287,11 +305,14 @@ def render(request: Request, template_name: str, context: Dict[str, Any] = None)
     ctx["request"] = request
     user = ctx.get("user") or ctx.get("current_user")
     if not user:
-        db = SessionLocal()
-        try:
-            user = get_current_user(request, db)
-        finally:
-            db.close()
+        if hasattr(request.state, "current_user"):
+            user = request.state.current_user
+        else:
+            db = SessionLocal()
+            try:
+                user = get_current_user(request, db)
+            finally:
+                db.close()
     ctx["user"] = user
     ctx["current_user"] = user
     ctx["ui_layout"] = request.cookies.get("cryptomail_layout", "classic")
@@ -331,8 +352,9 @@ def login_get(
     remaining = period - (now % period)
     preset_names = ["admin", "alice", "bob"]
     preset_data = []
+    users_dict = {u.username: u for u in db.query(User).filter(User.username.in_(preset_names)).all()}
     for uname in preset_names:
-        u = db.query(User).filter(User.username == uname).first()
+        u = users_dict.get(uname)
         if u and u.totp_secret:
             code = generate_totp_code(u.totp_secret, timestamp=now)
             preset_data.append({
@@ -361,8 +383,9 @@ def api_live_totp(db: Session = Depends(get_db)):
     remaining = period - (now % period)
     preset_names = ["admin", "alice", "bob"]
     res = {}
+    users_dict = {u.username: u for u in db.query(User).filter(User.username.in_(preset_names)).all()}
     for uname in preset_names:
-        u = db.query(User).filter(User.username == uname).first()
+        u = users_dict.get(uname)
         if u and u.totp_secret:
             code = generate_totp_code(u.totp_secret, timestamp=now)
             res[uname] = {
@@ -581,7 +604,22 @@ def logout_route(request: Request):
 
 @app.get("/register", response_class=HTMLResponse)
 def register_get(request: Request, error_msg: Optional[str] = None):
-    return render(request, "register.html", {"error": error_msg, "error_msg": error_msg})
+    available_keys = []
+    try:
+        from cryptomail.services.rsa_pool_service import get_all_keys_status
+        db = SessionLocal()
+        try:
+            all_keys = get_all_keys_status(db=db)
+            available_keys = [k for k in all_keys if k["id"] >= 4 and k["is_available"]]
+        finally:
+            db.close()
+    except Exception:
+        pass
+    return render(
+        request,
+        "register.html",
+        {"error": error_msg, "error_msg": error_msg, "available_keys": available_keys},
+    )
 
 
 @app.post("/register")
@@ -590,7 +628,8 @@ def register_post(
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
-    rsa_key_size: int = Form(4096),
+    rsa_key_size: int = Form(32768),
+    rsa_key_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
 ):
     user, err = register_user(
@@ -600,9 +639,27 @@ def register_post(
         password=password,
         role="user",
         rsa_key_size=rsa_key_size,
+        rsa_key_id=rsa_key_id,
     )
     if err or not user:
-        return render(request, "register.html", {"error": err, "error_msg": err, "form_username": username, "form_email": email})
+        available_keys = []
+        try:
+            from cryptomail.services.rsa_pool_service import get_all_keys_status
+            all_keys = get_all_keys_status(db=db)
+            available_keys = [k for k in all_keys if k["id"] >= 4 and k["is_available"]]
+        except Exception:
+            pass
+        return render(
+            request,
+            "register.html",
+            {
+                "error": err,
+                "error_msg": err,
+                "form_username": username,
+                "form_email": email,
+                "available_keys": available_keys,
+            },
+        )
 
     return render(
         request,
@@ -936,12 +993,21 @@ def keys_profile_route(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    rsa_key_size = 2048
+    rsa_key_size = 32768
     if user.rsa_public_key and "MODULUS_LEN_" in user.rsa_public_key:
         try:
             rsa_key_size = int(user.rsa_public_key.split("MODULUS_LEN_")[1].split()[0])
         except Exception:
             pass
+
+    pool_keys = []
+    current_pool_key_id = None
+    try:
+        from cryptomail.services.rsa_pool_service import get_all_keys_status, get_user_current_pool_key_id
+        pool_keys = get_all_keys_status(db=db, current_user=user)
+        current_pool_key_id = get_user_current_pool_key_id(user)
+    except Exception:
+        pass
 
     return render(
         request,
@@ -951,6 +1017,8 @@ def keys_profile_route(request: Request, db: Session = Depends(get_db)):
             "current_user": user,
             "cert_dict": cert_dict,
             "rsa_key_size": rsa_key_size,
+            "pool_keys": pool_keys,
+            "current_pool_key_id": current_pool_key_id,
             "active_page": "keys",
         },
     )
@@ -1045,7 +1113,8 @@ def download_rsa_private(request: Request, db: Session = Depends(get_db)):
 @app.post("/ecp/rsa/reissue")
 async def rsa_reissue_action(
     request: Request,
-    key_size: int = Form(4096),
+    pool_key_id: Optional[int] = Form(None),
+    key_size: int = Form(32768),
     custom_p: Optional[str] = Form(None),
     custom_q: Optional[str] = Form(None),
     use_server_pregen: Optional[bool] = Form(False),
@@ -1053,6 +1122,29 @@ async def rsa_reissue_action(
     db: Session = Depends(get_db),
 ):
     user = require_auth(request, db)
+
+    # 0. Selection from precomputed 10-key RSA-32K pool
+    actual_key_id = None
+    if pool_key_id is not None and not hasattr(pool_key_id, "default"):
+        try:
+            actual_key_id = int(str(pool_key_id).strip())
+        except (ValueError, TypeError):
+            pass
+
+    if actual_key_id is not None and 1 <= actual_key_id <= 10:
+        try:
+            from cryptomail.services.rsa_pool_service import assign_pool_key_to_user
+            assign_pool_key_to_user(user, actual_key_id, db)
+            if "session" in request.scope:
+                request.session["alert_message"] = f"Ключевая пара #{actual_key_id} (RSA-32K, 32768 бит) успешно активирована из пула!"
+                request.session["alert_type"] = "success"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+        except Exception as e:
+            if "session" in request.scope:
+                request.session["alert_message"] = f"Ошибка активации ключа #{actual_key_id} из пула: {e}"
+                request.session["alert_type"] = "error"
+            return RedirectResponse(url="/ecp", status_code=status.HTTP_303_SEE_OTHER)
+
     p: Optional[int] = None
     q: Optional[int] = None
     source_desc = None
