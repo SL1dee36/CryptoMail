@@ -68,13 +68,21 @@
     }
 
     function reinitializePageScripts(container) {
-        // Execute scripts inside swapped container
+        // Execute scripts inside swapped container in global context
         const scripts = container.querySelectorAll('script');
         scripts.forEach(oldScript => {
-            const newScript = document.createElement('script');
-            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-            oldScript.parentNode.replaceChild(newScript, oldScript);
+            if (oldScript.src) {
+                const s = document.createElement('script');
+                s.src = oldScript.src;
+                document.head.appendChild(s);
+            } else if (oldScript.textContent) {
+                try {
+                    // Standard ECMAScript indirect global eval
+                    (1, eval)(oldScript.textContent);
+                } catch (e) {
+                    console.error("Error evaluating page script:", e);
+                }
+            }
         });
 
         // Trigger custom event so page-specific JS can bind

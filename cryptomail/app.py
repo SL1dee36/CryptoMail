@@ -233,6 +233,10 @@ if os.path.exists(STYLE_DIR):
     app.mount("/templates/style", StaticFiles(directory=STYLE_DIR), name="templates_style")
     app.mount("/style", StaticFiles(directory=STYLE_DIR), name="style")
     app.mount("/cryptomail/style", StaticFiles(directory=STYLE_DIR), name="cryptomail_style")
+    webfonts_dir = os.path.join(STYLE_DIR, "webfonts")
+    if os.path.exists(webfonts_dir):
+        app.mount("/templates/webfonts", StaticFiles(directory=webfonts_dir), name="templates_webfonts")
+        app.mount("/webfonts", StaticFiles(directory=webfonts_dir), name="webfonts")
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
