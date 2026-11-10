@@ -564,7 +564,7 @@ def cmd_ecp(args):
         z2_rfc = (-r_rfc * v_rfc) % c256.q
         C_ver = c256.point_add(c256.point_mul(z1_rfc, c256.P), c256.point_mul(z2_rfc, (pub_rfc.x, pub_rfc.y)))
         assert C_ver[0] % c256.q == r_rfc
-        print("  [*] Верификация Алгоритма II: СОВПАДЕНИЕ R == r (100% эталон ГОСТ)")
+        print(f"  [*] Верификация Алгоритма II: R == r ({C_ver[0] % c256.q == r_rfc})")
 
         # 2. Live test with ГОСТ Р 34.10-2012-512 + Стрибог-512
         print("\n[2] Сквозной тест ГОСТ Р 34.10-2012-512 (хэш-функция «Стрибог-512»)...")
